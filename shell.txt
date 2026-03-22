@@ -1,0 +1,1308 @@
+Bourne shell summary
+
+Contents
+--------
+  Comments
+  Quoting
+  Input
+  Here Documents
+  Output
+  Pipelines
+  Variables
+  Arithmetic Manipulation of Variables
+  Wildcard Matching and ~
+  Command Output Evaluation
+  Conditional Blocks
+  Loops
+  Subroutines (Functions)
+  Subshells
+  eval Command
+  Disambiguating Identically Named Commands and Functions
+  Debugging Hints
+  Run Command File
+  Finding Files
+  Sorting, Extracting, and Replacing Text
+
+The material here pertains to the POSIX-compliant Bourne shell 'sh'
+and its derivatives. The material covered here is free of "Bash-isms."
+So, in a sense, this presents 'classic' Bourne shell conventions,
+but not necessarily just the original 'sh' conventions.
+
+The ideas presented here aren't necessarily sequential. By that, we
+mean it cannot be guaranteed that any give section only discusses
+material that precedes it in the file. In general, trying to do this
+leads to a lot of "chicken or egg" situations. So concepts are
+freely discussed throughout the document without too much regard for
+order of introduction.
+
+Comments
+--------
+
+Comments are indicated by a leading # character. Everything after that
+on a line is ignored, except in the first line in a shell script. In
+that case you use this:
+
+  #! <path_to_sh>
+
+which is often:
+
+  #! /bin/sh
+
+
+Quoting
+-------
+
+Quoting of strings is used to control how the shell interprets text.
+Certain commands have their own rules about quoting text that go
+beyond what the shell requires. In such cases, it is the command's
+rules that determine how you should quote (within the context of that
+command). Outside such a context, the shell's quoting rules apply.
+
+The most basic type of quoting is backslash (\) quoting. It removes
+any special interpretation of the character following it. In general
+backslash quoting is the easiest way to quote a single character.
+
+There are certain combinations of characters involving a backslash
+that are called escape sequences. These include things like \n, \t,
+and so forth. These don't mean literal 'n' or 't'. They have special
+meanings to the shell, often pertaining to non-printing characters that
+produce whitespace.
+
+Single quotes (') enclose zero or more characters of text. They remove
+any special meaning of any characters they enclose. They are used to
+treat text absolutely literally. It is not possible to embed a single
+quote within single quotes.
+
+Double quotes are less restrictive than single quotes. Double quotes
+allow variable de-referencing, escape sequences, and command
+evaluation (or substitution). Note that single-quotes are treated
+literally inside double quotes. The $, `, ", and \ characters all need
+to be escaped by a \ in order to be treated literally.
+
+Here are some examples:
+
+  echo 'He said, "How'\''s things?"'
+  He said, "How's things?"
+
+At first glance, this may appear that quotes of varying types are
+being nested and break various quoting rules. But in reality, these
+are three abutting quoted strings. The first starts at H and continues
+to w. The second is \'. The third is the rest of the line.
+
+  echo "I am '$(whoami)'"
+  I am 'danl'
+
+Single quotes are literal inside double quotes, and command substitution
+is allowed because the single quotes are literal.
+
+  echo '"I am Sam" said '"\"Sam I am\""
+  "I am Sam" said "Sam I am"
+
+Again, these are abutting quoted strings. The first is in single
+quotes, while the second is in double.
+
+
+Input
+-----
+
+Input is typed on the command line of the shell. The first word on the
+line is interpreted as a command, which can have additional arguments.
+In a script, commands appear in the file. Commands are either separated
+by newlines, or if they appear on the same line, by semicolons.
+
+Short form arguments typically start with single hyphens:
+
+  ls -l
+
+In POSIX, long-form options start with two hyphens:
+
+  ls --all
+
+Multiple arguments can be combined or listed separately:
+
+  ls -l -a
+  ls -la
+
+To direct input to a command from a file, use <.
+
+  command < filename
+
+The command must support input from a file in this way, which not all
+do.
+
+/dev/tty indicates input comes from the keyboard. The shell actually
+considers /dev/tty to be a file, as shown here:
+
+  read answer < /dev/tty
+
+"$answer" then contains what the user types.
+
+The 'read' command is used to read data into variables. The basic
+syntax is this:
+
+   read <var> [<var> ...]
+
+Data is read from a file and stored in the variables in the order they
+appear. The delimiter for what gets read into a variable is the internal
+field separator (IFS variable). By default, this is set to space, tab,
+and newline, but it can be reassigned by simple variable assignment.
+
+The 'read' command is often used in a loop, like this:
+
+   while IFS=\n read line
+   do
+     echo "You entered: $line"
+     if [ "$line" = "exit" ]; then break; fi
+   done < /dev/tty
+
+The loop returns "You entered: <string>" after you hit the Enter key.
+If you enter 'exit', the loop quits after printing the message.
+
+Another method is to pipe input into 'read'. This is a general method
+that works with any command and can be more convenient than file
+redirection. The general form would be something like this:
+
+  cat <file> | while IFS=\n read line
+  do
+  ...
+  done
+
+Note the absence of file redirection on the final line.
+
+
+"Here" Documents
+----------------
+
+"Here" documents use a special mechanism that allow inline
+specification of inputs to a command. The inputs can span multiple
+lines. Here's an example:
+
+  cat << EOF
+  here are multiple
+  lines of text.
+  EOF
+
+The EOF string is arbitrary, but it commonly used to stand for
+End Of File.
+
+If you want to redirect output to a file, do this:
+
+  cat << EOF > file
+  ...
+  EOF
+
+The <<- operator is similar to <<, with the additional behavior that it
+strips leading tab characters (not spaces) from each line in the text
+of the "here" document. This is to allow easier reading code while at
+the same time giving a more desirable output, especially if the indent
+level is quite large.
+
+
+Output
+------
+
+Output in printed form is given by two commands.
+
+'echo' offers a simple commands for directing output to STDOUT (standard
+output). The output doesn't offer special formatting, but is good for
+many basic uses. One problem with echo is, its behavior can be different
+on different systems. echo includes a newline at the end of the returned
+string.
+
+  $ echo "this is the string"
+  this is the string
+
+'printf' has fancier features than echo and more uniform behavior across
+systems. Here are a few examples:
+
+  $ printf "|%6s|\n" flub
+  |  flub|
+  $ printf "|%-6s|\n" flub
+  |flub  |
+  $ printf "|%6s|\n" flubadub
+  |flubadub|
+  $ printf "|%6.6s|\n" flubadub
+  |flubad|
+
+Decimal integers are supported with the 'd' flag.
+
+  $ printf "%6d\n" 1234
+    1234
+  $ printf "%-6d\n" 1234
+  1234
+  $ printf "%6d\n" 12345678
+  12345678
+  $ printf "%6.6d\n" 12345678
+  12345678
+
+Notice in all cases that the width of 6 doesn't specify a maximum
+width, only a minimum allocation of character spaces. Also notice
+that the precision of .6 can cause string truncation, but it does not
+cause integer truncation, which makes sense.
+
+See the man page for more details.
+
+Output can be redirected using >.
+
+  <command> > filename
+
+If filename exists, it is truncated and the new output is written. If
+you use >>, then the new output is appended to any existing content in
+the filename.
+
+The command 'set -C' performs the same function as 'set noclobber' in
+the C shell. This protects against inadvertent overwriting of files by a
+command. In that case, neither > nor >> will work. The POSIX standard
+provides for a >| operator to override this (similar to >! in the
+C shell) but this operator is not universally supported and sometimes
+doesn't work.
+
+/dev/null is a special file often called the "bit-bucket". It's sort of
+a trash can when outputs can be routed when they aren't necessary. It
+can be useful to redirect output from commands to this file when the
+messages aren't going to be helpful.
+
+Open files have numeric descriptors: 0 for STDIN, 1 for STDOUT, and
+2 for STDERR. By default, STDIN comes from the keyboard, or /dev/tty;
+STDOUT and STDERR go to the terminal.
+
+The following two commands are equivalent:
+
+  <command> > file
+  <command> 1> file
+
+These redirect STDOUT to a file. Messages to STDERR still come to the
+terminal. To redirect all outputs to files, you can do this:
+
+  <command> > file1 2> file2
+
+If you want to be cavalier about it:
+
+  <command> > file1 2> /dev/null
+
+And if you want to be really cavalier about it:
+
+  <command> > /dev/null 2>&1
+
+This means send STDOUT to /dev/null and STDERR to wherever STDOUT is
+currently directed.
+
+
+Pipelines
+---------
+
+The | character (called pipe) directs output to another command:
+
+  command1 | command2
+
+command1 needs to be able to produce output to STDOUT, and command2
+needs to be able to receive it for this sequence to work.
+
+When using command pipelines involving many commands, try to order the
+commands in such a way as to cut down the dataset as soon as possible.
+
+
+Variables
+---------
+
+Variables are declared using this form:
+
+  varName="<variable_string>"
+
+All variables are global in scope of a script.
+
+They are made active in the shell environment using the export command:
+
+  export varName
+
+Non-POSIX 'sh' versions require that the definition of varName and the
+export command occur in separate commands. More common is this:
+
+  export varName="<variable_string>"
+
+Variables of any type are dereferenced using a dollar sign:
+
+  echo "$varName"
+
+It is a good practice to quote "$varName" because the variable can
+contain whitespace, which some commands may not like. This also
+guarantees the existence of an argument (possibly empty) that certain
+commands expect.
+
+Command-line arguments and arguments passed in to subroutines are
+dereferenced by $n, where 1 <= n < 10. For numbers greater than 9,
+you have to say ${n}.
+
+The following special variables exist:
+
+  $# -- number of arguments passed to a script or subroutine.
+
+  $* and $@ -- references all the command line arguments passed to
+               a script at once. This can be passed to some other
+               program or subroutine. Using these literally actually
+               passes the individual "words" used as arguments on the
+               command line. If an argument is a string constant with
+               embedded whitespace, each word in the string constant
+               is treated separately.
+
+               "$*" represents all command line arguments as a single
+               string constant with no embedded quotes.
+
+               "$@" represents all command line arguments as separate
+               strings. String constants with embedded whitespace are
+               preserved as quoted. This is often the best way to pass
+               command line arguments.
+
+  $- -- options given to the shell when started.
+
+  $? -- exit status of previous command. Often 0 for success and 1 for
+        failure, although by standard, values >0 indicate failures of
+        various types. This variable can be rather useful in a script
+        to return the exit status to the calling environment:
+
+          exit $?
+
+        This would be the final command executed for some part of the
+        script.
+
+  $$ -- PID of the current shell process.
+
+        This is frequently used to create suffixes of temporary files
+        that are used while a script is running. This can create a
+        security issue because such files then have a relatively easily
+        predictable form. To make this sort of attack more difficult,
+        one can create a directory that has no read or execute
+        permissions and store the temp files in that. If the temp
+        directory can't be read, nobody except you will know it's there.
+        But that means the directory name will be hard-coded, so you
+        have to protect against people reading the source code. For even
+        more security, the mktemp program can be used to generate
+        randomized filenames.
+
+  $0 -- name of the current shell program.
+
+  $! -- PID of the last background command. This is used to save such
+        PIDs for later use in a 'wait' command.
+
+  $ENV -- used by an interactive shell at startup. It should reference
+          the pathname of a file executed at startup.
+
+  $HOME -- current user's login directory.
+
+  $LANG -- current locale. Overridden by LC_* variables.
+
+  $PATH -- pathnames to directories where executable commands exist.
+           the paths are order-dependent.
+
+  $PWD -- current working directory.
+
+ The "shift" command is often useful in processing the lists of
+ arguments these variables contain.
+
+   shift [<n>] -- discards the first argument from a list of arguments
+                  referenced by one of the special variables and sets
+                  the current argument to the next one in the list.
+                  The <n> represents the number of arguments to
+                  discard and defaults to 1.
+
+A common application is in processing command line arguments:
+
+  while [ $# -gt 0 ]
+  do
+    case $1 in
+      -a) opt=$2
+          shift (this is used to move from -a to its argument)
+          ;;
+      -b) flag=1
+          ;;
+      --) shift (convention holds that -- ends options)
+          break
+          ;;
+      -*) echo $0: $1 unrecognized option >&2 (echo the script name
+      then the option name. return output to stderr)
+          ;;
+      *) break (no options left to process)
+         ;;
+    esac
+    shift (move to next arg)
+  done
+
+The previous code only works if you account for all possible options.
+
+A related command in this context is getopts. This command uses two
+built-in variables:
+
+   OPTARG -- if an option has an additional argument, it is stored in
+             the OPTARG variable.
+   OPTIND -- the index number of the next argument to be processed.
+             the shell initializes this variable to 1. Be aware that
+             any subroutine that uses getopts to parse its own options
+             shares the OPTIND variable, so you need to ensure that
+             subroutine sets OPTIND to 1. Calling such a subroutine from
+             within another loop where getopts is used is inadvisable.
+
+The getopts command takes option names as arguments. If an option name
+is followed by a colon, that option itself has an argument.
+
+Using getops would modify the preceding loop example as follows:
+
+  while getopts a:b args
+  do
+    case $args in
+      a) opt=$OPTARG
+         ;;
+      b) flag=1
+         ;;
+    esac
+  done
+  shift $((OPTIND - 1)); # this is a POSIX-ism and isn't generally
+                         # available on all systems
+
+Notice no hyphens are used for option names in this code. All the
+other cases handled by the original code are handled automatically by
+getopts. But often it's a better idea to handle bad options in the
+script itself. To do this, simply precede the option list with a ":".
+
+  while getopts :a:b args
+  ...
+
+Now it won't give error messages. You can then handle the errors in
+a final case like this:
+
+  '?') echo "$0: invalid option -$OPTARG" >&2
+       exit 1
+       ;;
+
+Internally, a bad option name is represented by a ? character.
+
+Unsetting a variable is done with this command:
+
+  unset [-f] <varName>
+
+This also works for subroutine names if you use the -f option.
+
+You can unset all environment variable settings and optionally
+redefine them using this command:
+
+  env -i [<var1>="<def1>" [<var2>="<def2>" ...]]
+
+An important environment variable is PATH. It defines where commands
+can be called from. It can be updated as follows:
+
+  export PATH=$PATH:<new_path>
+
+Dereferencing variables does not require whitespace before the $:
+
+  varName=nation
+  newVar=concate$varName
+  echo $newVar
+  concatenation
+
+The 'readonly' command defines variables whose values cannot be altered:
+
+  readonly <varName>
+
+To embed a variable in a string, use this construct:
+
+  ${<varName>}
+
+You can then prefix or suffix the string, and the variable is
+de-referenced properly. Some additional forms of this construct are as
+follows:
+
+  ${<varName>:-<value>} -- if varName is non-null, return it.
+                           otherwise, return <value>.
+
+  ${<varName>:=<value>} -- same as previous contstruct, but if
+                           varName is null, also set it to <value>.
+
+  ${<varName>:?[<message>]} -- if varName is non-null, return it.
+                               otherwise, return the <message>.
+                               the default messages are "not set"
+                               or "parameter null".
+
+  ${<varName>:+<word>} -- if varName is non-null, return <word>.
+                          otherwise, return nothing. this is
+                          similar to the 'test -n' option.
+
+If the : is omitted in the previous constructs, then only existence is
+tested. Nullity isn't.
+
+You can do some interesting matching and returning of portions of
+variable values using the following constructs. Here, <pat> refers
+to a glob-style wildcard match rather than a regular expression.
+
+  ${<varName>#<pat>}  -- remove the shortest, leftmost pattern match of
+                         <varName> and return the rest. can be used to
+                         remove the root of a pathname, where <pat> is
+                         /*/ .
+
+  ${<varName>##<pat>} -- remove the longest, leftmost pattern match of
+                         <varName> and return the rest. often used to
+                         remove everything but the tail of a pathname,
+                         where <pat> is /*/ .
+
+  ${<varName>%<pat>}  -- remove the shortest, rightmost pattern match of
+                         <varName> and return the rest. often used to
+                         remove the tail of a pathname, where <pat> is
+                         /* .
+
+  ${<varName>%%<pat>} -- remove the longest, rightmost pattern match of
+                         <varName> and return the rest.
+
+Perhaps an easy way to remember what # and % mean is to look at the
+keyboard and see that # precedes %. Then remember that doubling the
+symbol removes more stuff.
+
+This construct returns the character length of a variable's value:
+
+  ${#<varName>}
+
+A leading colon character in the Bourne shell is actually a command.
+It means "do nothing, except possibly expansion of arguments." So
+while this command has uses outside of variables, the context it's
+often seen in is to do variable expansion without executing some
+underlying expression. So say you have a command like this:
+
+  ${my_command:="<some executable string>"
+
+The intent here is, if my_command doesn't exist as a variable, create
+it, and assign it the value of the quoted string. $my_command is
+intended to be a command that can be called later. But a problem with
+this usage is, what if <some executable string> is executable itself?
+That string would be executed at the same time my_command is defined,
+and that may be undesirable. In that case, you can do this:
+
+  : ${my_command:="<some executable string>"
+
+Now my_command will simply be defined without the undesirable side-
+effect.
+
+
+Arithmetic Manipulation of Variables
+------------------------------------
+
+Certain arithmetic operators can be used to manipulate or otherwise
+process variables. A quick example suffices to show what this is:
+
+  $ i=5
+  $ echo $((i += 2)) $i
+  7 7
+
+The $((<expression>)) syntax is from the POSIX standard. Non-POSIX-
+compliant shells do not support this, in which case `expr ...` is
+needed.
+
+All of the usual C arithmetic operators are supported with their
+customary precedence and left or right associations. Here are some of
+the more common operators:
+
+  + - ! -- unary plus and minus or addition and subtraction.
+           if either of the latter, they have lower precedence
+           than *, /, and %. ! is logical negation.
+
+  * / % -- multiplication, division, and remainder.
+
+  < <= > >= == != -- comparison operators.
+
+  && || -- AND and OR.
+
+  x ? y : z -- conditional test with assignment. if x then y, else z.
+
+               $ echo $((3 < 4 ? 1 : 0))
+               1
+               $ echo $((5 < 4 ? 1 : 0))
+               0
+
+               Since these are arithmetic operators, numbers are
+               assumed to be the arguments.
+
+  = += -= *= /= %= -- assignment, with optional concurrent application
+                      of an arithmetic operation.
+
+The ++ and -- auto-increment and decrement operatons work in some
+shells, but they don't work in dash, for example.
+
+The method of doing arithmetic shown here is preferred to using expr,
+which can be a tricky command to use.
+
+
+Wildcard Matching and ~
+-----------------------
+
+There are a number of wildcards that can be used to match files in
+pathnames. This is sometimes referred to as globbing.
+
+  ? -- match any one character. (does not match absence)
+  * -- match zero or more characters.
+  [<chars>] -- match any character in the set <chars>.
+  [!<chars>] -- match any character not in the set <chars>.
+
+The set matching <chars> strings support ranges such as in regular
+expressions: [a-zA-Z], [0-9], and so on.
+
+A leading ~ (tilde or twiddle) character acts as a special wildcard in
+a path. It has two usages: ~/<path> and ~<username>.
+
+  ~/<path> is a shorthand for $HOME/<path> of the current user.
+
+  ~<username> is shorthand for the $HOME path of the specified user.
+
+
+Command Output Evaluation
+-------------------------
+
+The output of commands can be evaluated in a script using two different
+conventions.
+
+The first convention is back-tic quoting. Here is an example:
+
+  echo `who | head -n 1 | sed 's/[[:space:]]\+/ /g' | cut -d ' ' -f 3-5`
+
+The pipeline is evaluated in place and the value is returned to echo.
+
+The other convention is to use $(<command>), like this:
+
+   echo $(who | head -n 1 | sed 's/[[:space:]]\+/ /g' | cut -d ' ' -f 3-5)
+
+Either way, the output can be stored in a variable.
+
+
+Conditional Blocks
+------------------
+
+The form of a conditional block is this:
+
+  if <expression>
+  then
+    <commands>
+  elif <expression>
+  then
+    <commands>
+  else
+    <commands>
+  fi
+
+The elif branch may be omitted, or both the elif and else branches may
+be omitted. The <expression> must be something that returns a 0 (for
+success) or non-0 (for failure) value. Based upon the return value of
+the expression, a decision is made how to proceed. The <commands> can
+be any number of accepted shell commands.
+
+Sometimes it can be convenient to have simple conditional blocks on a
+single line. In that case, they look like this:
+
+  if <expression>; then <command>; fi
+
+but this can be unwieldy for long expressions or commands.
+
+Three logical operators are permitted as part of the <expression>.
+
+   ! -- logical NOT. Negates the part of <expression> that immediately
+        follows it.
+
+  && -- Boolean AND. Performs a second command if the first command
+        argument to the && succeeds. Returns success if both commands
+        connected by the operator return success.
+
+  || -- Boolean OR. Performs a second command if the first command
+        argument to the || fails. Returns success if either command
+        connected by the operator returns success.
+
+Note that these operators (particularly the last two) don't need to be
+used in a 'if' block. The latter two can actually be used to substitute
+for an 'if' block, but one should be careful in doing this. For example:
+
+  test 1 -lt 0 && echo failure; # outputs nothing
+  test 1 -lt 0 || echo failure; # outputs failure
+
+"1 -lt 0" is false, so 'test' does not return success, but 'echo' does.
+The first expression may be a bit of a surprise, but once we understand
+that 'test' did not succeed, the && doesn't need to know the outcome of
+echo in order to know the entire expression fails. So the 'echo'
+doesn't execute. In the second expression, since 'test' doesn't
+succeed, the || continues with the 'echo' in order to determine what
+truth value the entire expression should return. In this case, it
+returns success because the 'echo' always does.
+
+If we have this:
+
+  test ! 1 -lt 0 && echo failure; # outputs failure
+
+the result is the opposite of before because of the '!' operator.
+
+Although it isn't required, if blocks typically use the abbreviated
+form of the 'test' command for the <expression>. This is based on the
+&& example from previously:
+
+  if [ 1 -lt 0 ]
+  then
+    echo failure
+  fi
+
+Here, the bracket expression tests for the return value of "1 -lt 0".
+Since that fails, the 'echo' isn't executed. But if we do this:
+
+  if [ ! 1 -lt 0 ]
+  then
+    echo failure
+  fi
+
+then the 'echo' command is executed. (Most people would use -ge
+rather than "! -lt" here, but this simply serves to show that '!'
+negates things.)
+
+Notice that whitespace is required between the '[ ]' operators and the
+expression they enclose. If you're going to connect the test
+expressions with a Boolean operator, then you do this:
+
+  if [ <expression> ] && [ <expression> ]
+  if [ <expression> ] || [ <expression> ]
+
+Using a single set of brackets results in an error.
+
+The [ ] test expression accepts certain operators and arguments.
+Here are the more common ones. They return "success" if the
+specified condition is met. (Again, the ! operator can be used to
+invert the return value.)
+
+  <string>  -- non-null.
+  -d <file> -- <file> is a directory.
+  -e <file> -- <file> exists.
+  -f <file> -- <file> is a plain file.
+  -h <file> -- <file> is a symlink.
+  -r <file> -- <file> is readable.
+  -s <file> -- <file> is non-empty.
+  -w <file> -- <file> is writable.
+  -x <file> -- <file> is executable.
+  -n <string> -- <string> is non-null. (variable is set and non-empty)
+  -z <string> -- <string> is null. (variable is unset or empty)
+  <s1> = <s2> -- strings are equal.
+  <s1> != <s2> -- strings are unequal. another case of ! usage.
+
+If the arguments to these operators are variables, the variable
+reference should be quoted, otherwise strange things happen.
+
+For integer arguments, these operators return success if the
+specified condition is met:
+
+  m -eq n -- m and n are equal.
+  m -ne n -- m and n are unequal.
+  m -gt n -- m > n.
+  m -lt n -- m < n.
+  m -ge n -- m >= n.
+  m -le n -- m <= n.
+
+In certain cases, test can be confused if variable arguments to it
+are empty or begin with a minus sign. So for maximum portability, you
+will sometimes see this convention:
+
+  if [ "X$var" = "Xvalue" ]
+
+This is even recommended by the POSIX standard. In most cases, this
+isn't needed by modern shells, but sometimes it may be needed.
+
+For situations when many cases need to be tested, the 'case'
+construct is prettier and easier to code than a bunch of nested
+elif clauses:
+
+  case $1 in
+    -f)
+      <code>
+      ;;
+    -d | --directory)
+      <code>
+      ;;
+    *)
+      <code with some diagnostic message>
+      exit 1;
+      ;;
+  esac
+
+Notice the use of | for OR.
+
+The final *) condition is a fall-through check. It is not necessary to
+include it, but it typically is a good idea. It's usually coded with
+some sort of diagnostic message. The 'exit 1' is also not required
+but is good form in the case of an error that should abort the script.
+The final ;; isn't needed, but since it adds symmetry, it's considered
+good form.
+
+
+Loops
+-----
+
+Loops are iterative structures that allow repetition of commands while
+some condition is met.
+
+The most common loop is a 'for' loop. It has this basic structure:
+
+  for <var> in <list>
+  do
+    <commands>
+  done
+
+The <list> is a list of objects. Generally, this should not be quoted.
+The <var> is a variable name that holds the current value from the
+<list>. The <var> initially references the first value in the list.
+<var> is updated to the next value in the <list> each time an iteration
+of the loop completes. The <var> is referenced in the <commands> block.
+After the <list> is exhausted, the loop automatically terminates.
+
+If the <list> is omitted, the command line arguments are assumed to be
+the list values.
+
+The next most common form of loop is 'while':
+
+  while <condition>
+  do
+    <commands>
+  done
+
+The <condition> is something that evaluates to success or failure,
+similar to an 'if' block. Often it is a 'test' command in the bracket
+form. While the <condition> is successful, the loop continues.
+
+It is possible to pipe data into a while loop:
+
+  <command> | while read <args>
+    do
+      <commands>
+    done
+
+ This is most often done with the 'read' command. See the system
+ documentation for more information about 'read'.
+
+The 'until' loop is least common. It is similar to the while structure:
+
+  until <condition>
+  do
+    <commands>
+  done
+
+The <condition> is as for the 'while' loop, except that 'until'
+continues its iterations so long as the <condition> evaluates to
+failure. Upon success, it terminates.
+
+The 'continue' and 'break' commands allow a program to skip part of a
+loop (continue) or exit it entirely (break). Both of these commands
+take a numeric argument indicating how many levels of loops to skip
+or to leave. The numeric argument is often useful when loops are
+nested, such as here:
+
+  while <condition>
+  do
+    ...
+    while <condition>
+    do
+      ...
+      continue 2; # 2 levels of loop nesting
+    done
+  done
+
+The 'true' and 'false' commands are used to write infinite loops. The
+'true' command evaluates as true and is used in while loops that run
+indefinitely until some condition is met that triggers an exit. The
+'false' command is used in until loops, and it operates conversely to
+true.
+
+  while true
+  do
+    if ...
+    then
+      break
+    fi
+    ...
+    sleep 900
+  done
+
+
+Subroutines
+-----------
+
+Subroutines (also referred to as functions) define blocks of code that
+can be referenced multiple times and executed. The must be defined
+before they can be referenced, or called. The basic form is this:
+
+  <name> () {
+    <commands>
+  }
+
+and they basically behave as separate scripts embedded in a parent
+script.
+
+Subroutines are called by name. The () is empty. A subroutine can take
+any number of input arguments, just as a script can. Like a script,
+the arguments passed to the subroutine can be referenced by $1, $2, and
+so on. The $#, $*, and $@ variables work in the same way for
+subroutines as they do for scripts.
+
+By default, a subroutine returns the exit value of the final command
+in the block. Within a subroutine, the 'return' command works the same
+way as the 'exit' command does for a script. The 'return' command
+returns a number to the calling environment. This is not required, but
+can be useful. To mimic the default behavior of not using a return
+command, you can end the subroutine with this:
+
+  return $?
+
+To save the exit status of a subroutine while executing it, you can do
+this:
+
+  val=$(<subname> [<args> ...])
+
+and you can then test the value of $val.
+
+
+Subshells
+---------
+
+A subshell can be explicitly invoked by placing commands in
+parentheses. A subshell processes commands independently of the current
+shell, which causes the current shell's environment not to be affected.
+This can be useful when you want to execute commands in some other
+directory while certain commands are being performed in the current
+directory without leaving it.
+
+The shell will avoid spawning a sub-process if it can. If it does avoid
+it, the commands are executed in their own environment.
+
+
+eval Command
+------------
+
+The 'eval' command causes the shell to run the arguments to eval back
+through the command parser again. eval is often necessary when commands
+are built in the context of the script based upon other commands.
+
+In the following example, the arguments to 'sed' have been defined
+in variables previously in the script. In order to get this command to
+work properly, eval is needed to put the arguments through a second
+round of parsing:
+
+  $ eval sed "$cmd1" "$cmd2" "$cmd3"
+
+If this isn't done, seemingly strange errors are given. The presence of
+strange errors can sometimes give a clue that eval is needed.
+
+eval can carry security risks. If one isn't careful about the string
+that gets passed to eval, it's possible to exploit it by creating a
+command that is passed as a variable argument to eval and then
+that gets executed on the fly.
+
+
+Disambiguating Identically Named Commands and Functions
+-------------------------------------------------------
+
+It's possible to have a subroutine, or function, that shares the same
+name as either a built-in (to the shell) or external command. In this
+case, the subroutine takes precedence. But what if you want to call
+the actual command instead? That's where the 'command' command comes
+into play:
+
+  command <program_name> [<args> ...]
+
+The 'command' command calls <program_name> as either a built-in command
+or from the user's $PATH.
+
+This is useful when redefining an existing command as a user subroutine.
+When the existing command is redefined, you may want it to perform what
+it ordinarily does along with some modifications. So that the subroutine
+doesn't end up recursively calling itself (it's got the same name as the
+command it's going to call), the 'command' command calls the original
+command from its usual location.
+
+
+Debugging Hints
+---------------
+
+Using "sh -x", or "set -x" in a script, turns on command execution
+tracing. This is a useful feature to watch the flow of a script as it
+runs. To turn it off, use +x.
+
+The 'trap' command is useful for handling temp file cleanup, among other
+things. This sequence of commands:
+
+  trap "exit 1"  HUP INT PIPE QUIT TERM
+  trap "rm -rf $fileVar1 $filevar2"
+
+causes removal of the files referenced by the variables if the script aborts
+abnormally. Simply commenting out the second command allows the files to
+remain while doing script development.
+
+
+Run Command File
+----------------
+
+The ~/.profile file contains shell commands to execute on startup. This
+is where you can define things like PATH and so forth. If this file
+isn't present, a default one is used.
+
+
+Finding Files
+-------------
+
+The most common command used for locating files is 'ls'. It's
+convenient and relatively easy to use, however, its behavior is not
+terribly portable. It shouldn't be relied on for scripts used across
+operating systems.
+
+A command less commonly used is 'locate'. It relies on a database of
+pathnames that gets rebuilt periodically. Searching is quite fast
+because it's looking at a database, not traversing the directory tree.
+The command's output can be large, so it often pays to pipe it through
+'more' or 'less', or some other paging or filtering command.
+
+The 'locate' command searches for files based upon a glob-style pattern
+by default. If you want the pattern to be interpreted as a regex, use
+the --regex option. Because the search is based upon a database rather
+than the current directory tree, the database may not match what the
+current directory tree contains. To limit the results to only those
+files that currently exist, use the -e option. It should probably be
+considered obligatory.
+
+If the updatedb command that creates the 'locate' database is run by
+a privileged user, then the locate command can show files that a user
+might not normally have access to. If this is a concern, then one
+should arrange to run updatedb as a non-privileged user or switch to
+using 'slocate' instead.
+
+The most exportable/script-worthy command for finding files is 'find'.
+It has the most predictable behavior. It also has many useful options
+for tailoring the input. Here's an example command with some of the
+often-used options:
+
+  find . -type d -name ".snapshot" -prune -o -type f -name "*.xml"
+
+This finds all files having a *.xml suffix recursively in directories  that are not in the .snapshot directory.
+
+The -type option selects the type of file. The arguments d, f, and l
+mean directory, plain file, and symbolic link, respectively. There are
+more than these, but they are rarely used. The -name option specifies
+the filename pattern, and it accepts glob characters. The -prune
+option specifies not to descend into the directory just specified.
+The -o option is a logical OR that merges two conditions.
+
+The output of the find command isn't sorted in a predictable way.
+It has a -ls option that gives output similar to what a detailed 'ls'
+list might have. Piping the output through 'sort' can also be useful.
+
+The -print option was in the original find command, but it's a bit
+redundant, so it isn't necessary (although it is accepted) in more
+recent find versions to print the output.
+
+
+Sorting, Extracting, and Replacing Text
+---------------------------------------
+
+A common text management task is sorting lists of things. This is
+commonly done with sort:
+
+  sort [<options>] [<file> ...]
+
+These are common options:
+
+  -d -- use dictionary sorting rather than ASCII (the default).
+  -f -- case-insensitive sort.
+  -k -- sort by specified columns in a specified order.
+  -n -- use integer sorting rather than ASCII.
+  -r -- use descending sort order (reverse).
+  -t <char> -- use <char> as a field delimiter instead of the default
+        whitespace. Leading and training whitespace is ignored by
+        default, but not with -t. Used with -k.
+  -u -- uniquify the output based upon matching fields, not entire
+        records.
+
+Often, sort is used in a pipeline to arrange columnar data.
+
+The -k option takes a coded argument that can be somewhat involved, and
+there can be more than one -k option specified. If more than one is
+specified, then the -k options are processed in the order specified.
+The basic forms are these:
+
+  -km,n -- sort according to fields m through n, in that order.
+           sorting reads to the end of field n. If m is given by itself
+           then sorting reads to the end of the record, not just to the
+           end of field m. For that reason, it is often best to specify
+           -km,m if you want only that field to be used.
+
+  -km.r,n.s -- sort according to field m character r through field n
+           character s.
+
+Any of the field (possibly with a character) specifications can take a
+letter suffix corresponding to one of the command line options that
+control character evaluation as part of the sort. For example, if you
+want dictionary sort order based upon the second field through the end
+of the third, you can say '-k2d,3'. (The hyphen is dropped from the
+option.) The letters k and t are invalid suffixes for obvious reasons.
+
+Uniquifying a list based upon an entire record, or line, is done by this
+command:
+
+  uniq [<options>] (abbreviated syntax)
+
+This is different from sort -u, which unquifies based upon field
+matches. Like sort, uniq is most often used in a pipeline. The most
+useful options are these:
+
+  -c -- prefix a count of occurrences in the output.
+  -d -- show only results of duplicated records.
+  -u -- show only result of unduplicated records.
+
+Managing the width of lines is sometimes desirable. This can be
+accomplished with the following command:
+
+  fmt [-<n>] [<option>] [<filename>]
+
+This command is highly variable in terms of its options and behaviors,
+so it is not terribly portable. These are the common options:
+
+  -<n> -- integer column width of the output. The default is often 75.
+
+  -s -- split long lines, but do not join short ones.
+
+  -w <n> -- same as specifying -<n>, at least on Red Hat.
+
+Counting words or lines is often useful:
+
+  wc [<option>] [<filename>]
+
+  -l -- count lines.
+  -w -- count words.
+
+Most often this is used in a pipeline.
+
+Sometimes it's useful just to view the beginning or ending of a file.
+For that, 'head' and 'tail' are used.
+
+  head [-<n>] [<file> ...]
+  tail [-<n>] [-f] [<file> ...]
+
+The <n> is an integer specifying a number of lines. Default is 10.
+The -f option follows the end of a file as it is being produced.
+Periodically, the output is refreshed. This option does not terminate
+the viewing of the tail of the file on its own, so it's not useful in
+a script.
+
+sed is a common command used for making replacements in files. It is
+useful in a command pipeline, but can appear in a script as well.
+Basic syntax is this:
+
+  sed [<options>] '<edit command>' [<filename> ...]
+
+If the <filename> is used, it is a file that receives edits.
+
+The <edit command> often involves a regular expression. sed supports
+basic regexes by default. Some implementations allow EREs, but it's
+best not to rely on that. Regular expressions match the longest,
+leftmost string.
+
+Here are the common options:
+
+  {-e '<edit command>'} ... -- must be used when there is more than one
+  <edit command>; otherwise optional. The -e <edit command> sequences
+  are space-delimited. The sequences are executed in the order they
+  appear. Later sequences can affect the output of earlier sequences.
+
+  -f <filename> -- specifies a <filename> that contains <edit command>
+                   sequences.
+
+  -n -- suppresses the printing of edited lines. The p command must be
+        used in this case to print output.
+
+The / is the common delimiter, but any delimiter can be used.
+
+  Examples:
+
+  This command simulates grep and prints the lines of my_file that have
+  "search text" in them.
+
+    sed -n '/search text/p' my_file
+
+  This replaces 'this' with 'that' globally in my_file and places the
+  output in my_file_edited.
+
+    sed 's/this/that/g' my_file > my_file_edited
+
+  Print everything from the beginning range through the ending range,
+  even across lines breaks.
+
+    sed  -n '/begin range/,/end range/p' my_file
+
+  Substitute 'that' for 'this' for all strings [except those] between
+  the beginning range and the ending range.
+
+    sed '/begin range/,/end range/[!]s/this/that/g' my_file
+
+This is a useful command for extracting fields.
+
+  cut -- extracts strings in given fields. fields can be characters or
+         they can be defined by delimiters. characters include
+         whitespace.
+
+       -c m[-n][,m[-n]...]; m and n are integers representing
+                            characters.
+                            ',' is the separator, and '-' defines a
+                            range.
+
+       -f m[-n][,m[-n]...] [-d <delimiter>]; similar to -c, except this
+                           is for fields delimited by tabs by default.
+                           -d defines a delimiter character. a delimiter
+                           that is special to the system should be
+                           single-quoted.
+
+awk operates on records, which are lines of text by default. Records
+are then divided into fields. Default delimiter for fields is
+whitespace, but this can be configured by the -F<delimiter> option,
+where <delimiter> is some character. Note there's no space after the F.
+
+awk is a common command often used for extracting fields and printing
+information in some format. Basic syntax is this:
+
+  awk [<options>] '<program>' [<filename> ...]
+      <options> ::= command options
+      ' '       ::= literal single quotes
+      <program> ::= <pattern> | { <action> } | <pattern> { <action> }
+      <pattern> ::= almost any pattern; usually an extentded regex
+      {  }      ::= literal braces, with whitespace padding
+      <action>  ::= an awk statement; usually a print command, which is
+                    the default
+
+The <program> can appear in the three forms shown in the BNF above. If
+just the <pattern> is provided, all lines that match the pattern are
+returned. If just the <action> is provided, it is applied to all lines.
+If both are provided, the <action> is applied to all lines that match
+the <pattern>.
+
+Here's a simple example:
+
+  # prints the head and tail of the directory
+  pwd | awk -F/ '{ print $2, $NF }'
+
+The $2 prints the first field after the initial /. Field 0 is the whole
+line (actually, the current record, which is a line by default). Field 1
+is null in this case because the delimiter comes first. Field NF is the
+final one.
+
+The print command is rather versatile, allowing just about anything.
+Double-quote literal strings. Use a comma to indicate you want a space
+between elements. Omitting the comma causes strings to be concatenated.
+
+When printing output, the default delimiter between fields is a space.
+This can be changed by using the -v 'OFS=<string>' command line option.
+-v stands for variable. OFS is a built-in variable that defines the
+output field separator. The separator can by any string.
+
+Two important commands are these:
+
+  BEGIN { <commands> }
+  END { <commands> }
+
+These can appear anywhere in an awk script. BEGIN commands are executed
+before anything else in the script. There can be more than one, and if
+there is, they are executed in the order they are defined. END commands
+work in a similar way but are executed after everything else in the
+script. BEGIN commands are used to set up the environment of the script
+and to pre-process data. END commands are frequently used for clean-up
+tasks.
+

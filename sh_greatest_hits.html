@@ -1,0 +1,1002 @@
+<html>
+<head>
+  <title>Shell scripting greatest hits</title>
+  <link rev="made" href="mailto:">
+  <meta name="generator" content="NoteTab Pro 4.95">
+  <meta name="author" content="dan liddell">
+  <meta name="description" content="a summary of bourne shell scripting stuff">
+  <meta name="keywords" content="Bourne shell scripting, sh, dash, bash">
+</head>
+
+<body bgcolor="#FFFFFF" text="#000000" link="#0000FF" vlink="#800080" alink="#FF0000">
+
+<pre>
+
+ Shell scripting greatest hits
+</pre>
+<a name="Contents"></a>
+<pre>
+
+ Contents (alphabetical)
+ --------
+</pre>
+<dl style="font-family: monospace">
+  
+  <dt>&nbsp;<a href="#Abbreviated Condition Checking">Abbreviated Condition Checking</a>
+  <p>
+  <dt>&nbsp;<a href="#Accessing Return and Exit Values of Commands">Accessing Return and Exit Values of Commands</a>
+  <p>
+  <dt>&nbsp;<a href="#Adding Color Highlights to Search Results">Adding Color Highlights to Search Results</a>
+  <p>
+  <dt>&nbsp;<a href="#ASCII Decimal Codes">ASCII Decimal Codes</a>
+  <p>
+  <dt>&nbsp;<a href="#Changing Text Case">Changing Text Case</a>
+  <p>
+  <dt>&nbsp;<a href="#Checking File Type">Checking File Type</a>
+  <p>
+  <dt>&nbsp;<a href="#Checking if an env Variable is Set">Checking if an env Variable is Set</a>
+  <p>
+  <dt>&nbsp;<a href="#Checking File for Special Characters">Checking File for Special Characters</a>
+  <p>
+  <dt>&nbsp;<a href="#Checking String for Special Characters">Checking String for Special Characters</a>
+  <p>
+  <dt>&nbsp;<a href="#Checking User id">Checking User id</a>
+  <p>
+  <dt>&nbsp;<a href="#Command Line Option Processing">Command Line Option Processing</a>
+  <p>
+  <dt>&nbsp;<a href="#Command Output Redirection">Command Output Redirection</a>
+  <p>
+  <dt>&nbsp;<a href="#Commands Having Syntactical Elements Resolved Through Variables">Commands Having Syntactical Elements Resolved Through Variables</a>
+  <p>
+  <dt>&nbsp;<a href="#Counter Variables">Counter Variables</a>
+  <p>
+  <dt>&nbsp;<a href="#Creating Subdirectories While Copying a File">Creating Subdirectories While Copying a File</a>
+  <p>
+  <dt>&nbsp;<a href="#Debugging">Debugging</a>
+  <p>
+  <dt>&nbsp;<a href="#Deleting Lines That Match Patterns">Deleting Lines That Match Patterns</a>
+  <p>
+  <dt>&nbsp;<a href="#Diff-ing Directories">Diff-ing Directories</a>
+  <p>
+  <dt>&nbsp;<a href="#Directory Recursion">Directory Recursion</a>
+  <p>
+  <dt>&nbsp;<a href="#Don't Actually Need to Use 'test' in Some Cases">Don't Actually Need to Use 'test' in Some Cases</a>
+  <p>
+  <dt>&nbsp;<a href="#Escaping a Backslash in a Regular Expression">Escaping a Backslash in a Regular Expression</a>
+  <p>
+  <dt>&nbsp;<a href="#Escaping Special Characters in XML to Create a sed Command">Escaping Special Characters in XML to Create a sed Command</a>
+  <p>
+  <dt>&nbsp;<a href="#Finding Files With Names Matching a Pattern">Finding Files With Names Matching a Pattern</a>
+  <p>
+  <dt>&nbsp;<a href="#Floating-Point Math (simple)">Floating-Point Math (simple)</a>
+  <p>
+  <dt>&nbsp;<a href="#Getting an Absolute Pathname">Getting an Absolute Pathname</a>
+  <p>
+  <dt>&nbsp;<a href="#Getting the Base Name of a File">Getting the Base Name of a File</a>
+  <p>
+  <dt>&nbsp;<a href="#Getting a File Extension">Getting a File Extension</a>
+  <p>
+  <dt>&nbsp;<a href="#Getting the Name of a File's Parent Directory">Getting the Name of a File's Parent Directory</a>
+  <p>
+  <dt>&nbsp;<a href="#Getting the Last Input Argument to a Script">Getting the Last Input Argument to a Script</a>
+  <p>
+  <dt>&nbsp;<a href="#if Block">if Block</a>
+  <p>
+  <dt>&nbsp;<a href="#Interactive Shell">Interactive Shell</a>
+  <p>
+  <dt>&nbsp;<a href="#Matching Text With Line Breaks">Matching Text With Line Breaks</a>
+  <p>
+  <dt>&nbsp;<a href="#Matching XML Elements With Line Breaks">Matching XML Elements With Line Breaks</a>
+  <p>
+  <dt>&nbsp;<a href="#Missing Newlines in Variable References">Missing Newlines in Variable References</a>
+  <p>
+  <dt>&nbsp;<a href="#Multiple String Substitutions in the Same File">Multiple String Substitutions in the Same File</a>
+  <p>
+  <dt>&nbsp;<a href="#Reading a File Line by Line">Reading a File Line by Line</a>
+  <p>
+  <dt>&nbsp;<a href="#Replacing Strings Within Sections Containing Line Breaks">Replacing Strings Within Sections Containing Line Breaks</a>
+  <p>
+  <dt>&nbsp;<a href="#Removing Line Breaks After Lines Matching a Pattern">Removing Line Breaks After Lines Matching a Pattern</a>
+  <p>
+  <dt>&nbsp;<a href="#Removing Special Text Characters that Hang the Shell">Removing Special Text Characters that Hang the Shell</a>
+  <p>
+  <dt>&nbsp;<a href="#Sorting Lines With Similar Strings">Sorting Lines With Similar Strings</a>
+  <p>
+  <dt>&nbsp;<a href="#Sorting List-like Tables by Column">Sorting List-like Tables by Column</a>
+  <p>
+  <dt>&nbsp;<a href="#Spell Checking a Text File Created by pdftotext">Spell Checking a Text File Created by pdftotext</a>
+  <p>
+  <dt>&nbsp;<a href="#Supplying Arguments to an Interactive Script">Supplying Arguments to an Interactive Script</a>
+  <p>
+  <dt>&nbsp;<a href="#Time Stamp">Time Stamp</a>
+  <p>
+  <dt>&nbsp;<a href="#Unique ID String Generation">Unique ID String Generation</a>
+  <p>
+  <dt>&nbsp;<a href="#Variable Arrays">Variable Arrays</a>
+  <p>
+  <dt>&nbsp;<a href="#XML Verification">XML Verification</a>
+  <p>
+  <dt>&nbsp;<a href="#Miscellaneous Awk">Miscellaneous Awk</a>
+</dl>
+
+<a name="Abbreviated Condition Checking"></a>
+<pre>
+
+
+ Abbreviated Condition Checking
+ ------------------------------
+
+   [ -z "$MGC_HOME" ] &amp;&amp; echo "Error: MGC_HOME is not set" &amp;&amp;  exit 1;
+</pre>
+<a name="Accessing Return and Exit Values of Commands"></a>
+<pre>
+
+
+ Accessing Return and Exit Values of Commands
+ --------------------------------------------
+
+ The ` ` operators work fine in many cases, but this doesn't:
+
+   echo `basename `dirname `pwd```
+
+ This does:
+
+   echo $(basename $(dirname $(pwd)))
+
+ Numeric exit values are stored in "$?". So:
+
+   &lt;command>; echo $?
+
+ gives the exit value.
+</pre>
+<a name="Adding Color Highlights to Search Results"></a>
+<pre>
+
+
+ Adding Color Highlights to Search Results
+ -----------------------------------------
+
+ # the highlight survives the pipeline to the output
+   printf "$(echo "$line" | grep -E --color=always "$condend|$") \n\n";
+
+ # as a procedure
+   highlight() {
+     grep --color -E "$1|$"
+   }
+</pre>
+<a name="ASCII Decimal Codes"></a>
+<pre>
+
+
+ ASCII Decimal Codes
+ -------------------
+
+   echo -n "A" | od -An -tuC
+</pre>
+<a name="Changing Text Case"></a>
+<pre>
+
+
+ Changing Text Case
+ ------------------
+
+ This can be handy:
+
+   &lt;cmd> | tr '[[:lower:]]' '[[:upper:]]'
+</pre>
+<a name="Checking File Type"></a>
+<pre>
+
+
+ Checking File Type
+ ------------------
+
+   file -ib &lt;file>
+
+   The file command is generally unpredictable, so test thoroughly.
+</pre>
+<a name="Checking if an env Variable is Set"></a>
+<pre>
+
+
+ Checking if an env Variable is Set
+ ----------------------------------
+
+   : ${CALIBRE_HOME:?"variable not set."};
+
+</pre>
+<p style="font-family: monospace">&nbsp;<a href="#Contents">Contents</a></p>
+<a name="Checking File for Special Characters"></a>
+<pre>
+
+
+ Checking File for Special Characters
+ --------------------------------------
+
+ Sometimes a file that is processed contains special characters
+ that cause problems for shell commands. This can be used to check
+ for such characters:
+
+   # flag non-ASCII, punctuation, and control sequences
+   grep -En --color=auto "[^[:ascii:]]|[[:punct:][:control:]]" &lt;file>
+
+ This can also be used for strings in a pipeline or to check your
+ shell script. In the latter case, dropping [:punct:] would be desirable.
+</pre>
+<a name="Checking String for Special Characters"></a>
+<pre>
+
+
+ Checking String for Special Characters
+ --------------------------------------
+
+   # general check for punctuation chararcters
+   # can narrow this down for specific ones if needed
+   if [ "`echo "$2" | grep -Ec '[[:punct:]]'`" -gt 0 ]
+   then
+     echo -e "\n  ERROR: \"$2\" cannot have special characters.\n";
+     exit 1;
+   fi;
+
+ Also see the previous entry.
+</pre>
+<a name="Checking User id"></a>
+<pre>
+
+
+ Checking User id
+ -----------------
+
+   if [ `id | grep -c -w cdoc` -eq 0 ]
+     then echo "Cannot run this script as `whoami`."; exit 1;
+   fi;
+</pre>
+<a name="Command Line Option Processing"></a>
+<pre>
+
+
+ Command Line Option Processing
+ ------------------------------
+
+ # check to see if there are 3 to 5 command-line args.
+ # if not, then print the usage message.
+   case $# in
+     3|4);;
+     5) if [ $5 != "-recurse" ]
+        then
+          print_usage;
+          exit 1
+        fi
+        ;;
+     *) echo "Error: Invalid arguments."; print_usage; exit 1;;
+   esac
+
+ ### more sophisticated processing
+   #! /bin/sh
+
+ # used to process command line args of the form "-x".
+
+   USAGE="Usage: $(basename $0) [-hv] [-o arg] args";
+
+ # Parse command line options.
+ # the colon means the option takes an argument
+   while getopts hvo: OPT; do
+     case "$OPT" in
+        h)
+          echo $USAGE;
+ 	  exit 0;
+ 	  ;;
+ 	v)
+ 	  echo "$(basename $0) version 0.1";
+ 	  exit 0;
+ 	  ;;
+ 	o)
+ 	  OUTPUT_FILE=$OPTARG;
+ 	  ;;
+ 	\?)
+ # getopts issues an error message
+ 	  echo $USAGE >&amp;2;
+ 	  exit 1;
+ 	  ;;
+ 	esac;
+   done;
+
+ # Remove the switches we parsed above.
+ # This only works in a POSIX compliant shell.
+   shift $(($OPTIND -  1));
+
+ # We want at least one non-option argument.
+ # Remove this block if you don't need it.
+   if [ $# -eq 0 ]; then
+     echo $USAGE >&amp;2;
+     exit 1;
+   fi;
+
+ # Access additional arguments as usual through
+ # variables $@, $*, $1, $2, etc. or using this loop:
+   for PARAM; do
+ # when the 'in' keyword is omitted, the command line args are
+ # iterated over.
+ # as the remaining arguments are iterated over, you would probably
+ # use some if blocks here to test what those are and handle them
+ # appropriately.
+     echo $PARAM;
+   done;
+
+   echo "\$1 is $1";
+
+   exit 0;
+
+ ### case with wildcards and setting options within the script itself
+ #! /bin/sh
+
+ # test if case can use glob wildcards
+
+   set -- one=1 two=2 three=3
+
+   for arg in "$@"; do
+     case "$arg" in
+     one*)
+       echo "var is $arg";
+       ;;
+     two*)
+       echo "var is $arg";
+       ;;
+     three*)
+       echo "var is $arg";
+       ;;
+     esac;
+     shift;
+   done;
+</pre>
+<p style="font-family: monospace">&nbsp;<a href="#Contents">Contents</a></p>
+<a name="Command Output Redirection"></a>
+<pre>
+
+
+ Command Output Redirection
+ --------------------------
+
+ # stdout only
+   /bin/grep 'TOTAL RULECHECKS EXECUTED = 6' extract.log > /dev/null
+ # stdout and stderr
+   $CALIBRE_HOME/bin/calibre -gui -dfm -runset runset_caa -batch > caa.log 2>&1;
+</pre>
+<a name="Commands Having Syntactical Elements Resolved Through Variables"></a>
+<pre>
+
+
+ Commands Having Syntactical Elements Resolved Through Variables
+ ---------------------------------------------------------------
+
+ In cases where a variables are used as a part of a command's syntax,
+ it can be necessary to use 'eval' to get an additional round of parsing.
+
+   eval dname_$i=`$BASENAME "$dfile"`;
+
+   $CAT "${projectDir}/${p}/$file" | eval $SED "$draftCmd" \
+   "$draftCondCmd" "$draftDateCmd" "$versionCmd" "$csdSearchCmd" \
+   "$copyrightCmd"  > ${projectDir}/${p}/${file}.1;
+
+   eval $ASPELL -l en create master ./\$dname_$i.tmpdict~ &lt; "$dfile";
+
+ This is typically discovered on a case-by-case basis.
+</pre>
+<a name="Counter Variables"></a>
+<pre>
+
+
+ Counter Variables
+ -----------------
+
+ This only works in POSIX-complient shells:
+
+   copies=0;
+   copies=$((copies + 1));
+</pre>
+<a name="Creating Subdirectories While Copying a File"></a>
+<pre>
+
+
+ Creating Subdirectories While Copying a File
+ --------------------------------------------
+
+ # for a file pathname called localPath, create all directories in
+ # the path while copying the file f.
+   mkdir -p "`$DIRNAME $localPath`" && cp -r "$f" "$localPath";
+</pre>
+<p style="font-family: monospace">&nbsp;<a href="#Contents">Contents</a></p>
+<a name="Debugging"></a>
+<pre>
+
+
+ Debugging
+ ---------
+
+ # This is a good way to debug a script.
+   /bin/sh 2>&1 -xv &lt;script & args> | tee /tmp/log
+</pre>
+<a name="Deleting Lines That Match Patterns"></a>
+<pre>
+
+
+ Deleting Lines That Match Patterns
+ ----------------------------------
+
+   grep -v '&lt;pattern>' &lt;file> > &lt;outfile>
+
+ where &lt;pattern> is a regex matching what you don't want.
+
+ Or this:
+
+   echo "$&lt;var>" | sed -n '/&lt;pattern>/!p'
+</pre>
+<a name="Diff-ing Directories"></a>
+<pre>
+
+
+ Diff-ing Directories
+ --------------------
+
+  diff -qr -- "$lastProdVid" "$stagingDir"
+</pre>
+<a name="Directory Recursion"></a>
+<pre>
+
+
+ Directory Recursion
+ -------------------
+
+   recurse_dir()
+   {
+   # some block can go here that does something useful.
+
+   # recursion part.
+     for subdir in `/usr/bin/ls -A1`
+     do
+       if [ -d $subdir ]; then
+         recurse_dir $subdir;
+       fi;
+     done;
+   # need this to recurse directories occurring on the same level
+     cd .. 1>/dev/null;
+   }
+</pre>
+<p style="font-family: monospace">&nbsp;<a href="#Contents">Contents</a></p>
+<a name="Don't Actually Need to Use 'test' in Some Cases"></a>
+<pre>
+
+
+ Don't Actually Need to Use 'test' in Some Cases
+ -----------------------------------------------_
+
+   if /bin/grep 'OASIS VERSION:      1.0' drc.log > /dev/null && \
+      /bin/grep 'DATABASE PRECISION: 2000' drc.log > /dev/null && \
+      /bin/grep 'TOTAL RULECHECKS EXECUTED = 152' drc.log > /dev/null && \
+      /bin/grep 'TOTAL RESULTS GENERATED = 17 (192)' drc.log > /dev/null && \
+      [ -e drc.report ] && \
+      [ -e drc.db$BALONEY ]
+   then
+     /bin/echo "  DRC OK.
+ ";
+
+ The above also shows how to join 'test' conditions with logical operators.
+ You can also negate them with !.
+</pre>
+<a name="Escaping a Backslash in a Regular Expression"></a>
+<pre>
+
+
+ Escaping a Backslash in a Regular Expression
+ --------------------------------------------
+
+ Escaping backslashes can be a bit tricky and depends on context.
+
+ Sometimes it's necessary to replace "/" characters with "\/" to ensure
+ proper behavior in a pipeline or some downstream command. Here is an
+ example sed expression to do this:
+
+   's#/#\\\/#g'
+
+ The initial \\ ensures \ is maintained, and \/ ensures \ is maintained in
+ the environment that process the output.
+</pre>
+<a name="Escaping Special Characters in XML to Create a sed Command"></a>
+<pre>
+
+
+ Escaping Special Characters in XML to Create a sed Command
+ ----------------------------------------------------------
+
+   # escape /, ;, and " in a string.
+   # notice that three \\\ characters are required for an escape.
+   oldTitle="`cat "/tmp/$fileout" | awk '/&lt;title/,/title>/' | sed -e 's#\/#\\\/#g' -e 's#\;#\\\;#g' -e 's#\"#\\\"#g'`";
+   sedCommand=' -e "s/$oldTitle/&lt;title>$title&lt;\/title>/"';
+</pre>
+<a name="Finding Files With Names Matching a Pattern"></a>
+<pre>
+
+
+ Finding Files With Names Matching a Pattern
+ -------------------------------------------
+
+ # match plain files of a given pattern one level below a given directory
+   find ${projectDir}/${1} -maxdepth 1 -type f -name "*${1}.xml"
+
+ # find *.xml other than those matching certain patterns
+   find ${checkedDir}/*.xml -maxdepth 1 ! -name '*.backup.*' ! -name '*.recover.*' -print
+
+ # find the last production video tree
+   lastProdQA="`ls -td -- ${qaDir}/20* | head -n 1`";
+</pre>
+<a name="Floating-Point Math (simple)"></a>
+<pre>
+
+
+ Floating-Point Math (simple)
+ ----------------------------
+
+   if [ "`/bin/echo "$calibre_ver &lt; 2015.3" | /usr/bin/bc`" = "0" ]
+</pre>
+<a name="Getting an Absolute Pathname"></a>
+<pre>
+
+
+ Getting an Absolute Pathname
+ ----------------------------
+
+ Here, $1 is a relative pathname of a file:
+
+   path="$(cd "$(dirname "$1")"; pwd)/$(basename "$1")"
+</pre>
+<p style="font-family: monospace">&nbsp;<a href="#Contents">Contents</a></p>
+<a name="Getting the Base Name of a File"></a>
+<pre>
+
+
+ Getting the Base Name of a File
+ -------------------------------
+
+ # get the file name without .xml extension
+   xmlBase="$(basename $x .xml)";
+</pre>
+<a name="Getting a File Extension"></a>
+<pre>
+
+
+ Getting a File Extension
+ ------------------------
+
+   ext=$(/bin/echo $1 | awk -F . '{if (NF>1) {print $NF}}');
+</pre>
+<a name="Getting the Last Input Argument to a Script"></a>
+<pre>
+
+
+ Getting the Last Input Argument to a Script
+ -------------------------------------------
+
+   for last; do : ; done;
+   echo "$last"
+</pre>
+<a name="Getting the Name of a File's Parent Directory">
+<pre>
+
+
+ Getting the Name of a File's Parent Directory
+ ---------------------------------------------
+
+ # here we assume a pathname has been detected and we want the dirname
+ # of the file's parent, not the full pathname.
+   for f in `find . -name README`
+   do
+      echo "$f" | awk -F '/' '{print $(NF-1)}'
+   done
+</pre>
+<a name="if Block"></a>
+<pre>
+
+
+ if Block
+ --------
+
+   if [ $# = "4" ] && [ $4 != "-recurse" ]; then
+     basedir="$4"
+   elif [ $# = "4" ] && [ $4 = "-recurse" ]; then
+     basedir="."
+     recurse_flag="1"
+   fi;
+</pre>
+<p style="font-family: monospace">&nbsp;<a href="#Contents">Contents</a></p>
+<a name="Interactive Shell"></a>
+<pre>
+
+
+ Interactive Shell
+ -----------------
+
+   for file in `/usr/bin/ls -1 "$HTML_Dump_Off"`
+   do
+     printf "Copy `basename "$file"`? (y | n) : ";
+     read ans;
+     if [ "$ans" = "y" ]
+     then
+       # do this
+     else
+       # do this
+     fi
+   done
+</pre>
+<a name="Matching Text With Line Breaks"></a>
+<pre>
+
+
+ Matching Text With Line Breaks
+ ------------------------------
+
+   awk -v n=1 '/END/{p=0}; p &amp;&amp; c == n; /BEGIN/ &amp;&amp; !p {p=1; c++}' &lt;file>
+
+ # the n variable defines which match gets printed. in this case, the
+ # first. the END and BEGIN strings define the boundaries of the match.
+ # when the ending string is matched, p is set to 0, which turns
+ # printing off.
+ # if "p &amp; &amp; c" is equal to n, the record is printed.
+ # if the starting string is matched and p=0 or null, p is set to 1
+ # and the match count is incremented.
+ # special characters need to be escaped. in csh, the ! needs to be
+ # escaped.
+</pre>
+<a name="Matching XML Elements With Line Breaks"></a>
+<pre>
+
+
+ Matching XML Elements With Line Breaks
+ --------------------------------------
+
+ # need to escape / in sh script to preserve it for further processing.
+ # note the escape character \ is also escaped.
+ # this could match an XML element specified more than once.
+ # see previous section for another idea.
+ # perl regular expression syntax assumed.
+   authors="`cat "$file" | grep -oP '(?&lt;=&lt;author>).*\n?.*(?=&lt;/author>)' | sed -e 's#\/#\\\/#'`";
+</pre>
+<a name="Missing Newlines in Variable References"></a>
+<pre>
+
+
+ Missing Newlines in Variable References
+ ---------------------------------------
+
+ # the shell has a built-in behavior that behaves like a bug.
+
+   v1="one
+   two";
+
+   v2="three
+   four";
+
+ # if you're not careful, this \n is not respected when refer-
+ # encing $v3 in certain contexts.
+   v3="${v1}\n${v2}";
+
+ # this will show 4 lines in $v3, which is expected
+   echo "----------";
+   echo "$v3";
+   echo "$v3" | wc -l;
+   echo "----------";
+
+   proc() {
+ #  v="$(echo $1)";
+ #  for w in $v
+ # the below will show only 3 lines in $v3 when it is
+ # passed in. the \n in the definition of v3 is lost.
+ # the fix is to use the first two lines in this
+ # procedure instead of the following line:
+     for w in $1
+     do
+       echo "in proc: $w";
+     done;
+   }
+
+   proc "$v3";
+   exit 0;
+</pre>
+<p style="font-family: monospace">&nbsp;<a href="#Contents">Contents</a></p>
+<a name="Multiple String Substitutions in the Same File"></a>
+<pre>
+
+
+ Multiple String Substitutions in the Same File
+ ----------------------------------------------
+
+ # the -r (or -E) option is needed when there is an extended regular
+ # expression, or, as in this case, when the variables contain octal
+ # sequences
+
+   sed -r "s%$(echo $cR)%c%g;\
+        s%$(echo $eL)%...%g;\
+        s%$(echo $emDash)%-%g;\
+        s%$(echo $enDash)%-%g;\
+        s%$(echo $reg)%%g;\
+        s%$(echo $dQL)%\"%g;\
+        s%$(echo $dQR)%\"%g;\
+        s%$(echo $sQL)%\'%g;\
+        s%$(echo $sQR)%\'%g;\
+        s%$(echo $tM)%%g;\
+        s%$(echo $cA)%%g;\
+        s%$(echo $pF)%%g" "$1"; # output redirection here if needed
+
+ # the -e option doesn't need this syntax. it can be specified once
+ # for each substitution statement.
+</pre>
+<a name="Reading a File Line by Line"></a>
+<pre>
+
+
+ Reading a File Line by Line
+ ---------------------------
+
+   while read line
+   do
+ # Create the list of GDS files for output.
+ # This test depends upon DRC MAXIMUM VERTEX being greater than 199. It is by default.
+ # This is reported in the RUNTIME WARNINGS section of the report when the output is geometric.
+     if [ `echo "$line" | grep -c '^RuleCheck output .* 199'` -eq "1" ]
+     then
+    ...
+     fi
+   done &lt; "$drc_report"
+</pre>
+<a name="Replacing Strings Within Sections Containing Line Breaks"></a>
+<pre>
+
+
+ Replacing Strings Within Sections Containing Line Breaks
+ --------------------------------------------------------
+
+ # &lt;begin> and &lt;end> are the boundaries of what's searched
+ # $find is the string to replace, $replace is the replacement
+   cat &lt;file> | sed -e "\%&lt;begin>%,\%&lt;end>%  s/$find/$replace/" > &lt;processed_file>
+</pre>
+<a name="Removing Line Breaks After Lines Matching a Pattern"></a>
+<pre>
+
+
+ Removing Line Breaks After Lines Matching a Pattern
+ ---------------------------------------------------
+
+ # concatenate <UsageLine> with following line
+
+   sed -e '/<UsageLine>/N' -e 's/\n//'
+
+ # may want a space as the replacement pattern, depending on desired form
+</pre>
+<a name="Removing Special Text Characters that Hang the Shell"></a>
+<pre>
+
+
+ Removing Special Text Characters that Hang the Shell
+ ----------------------------------------------------
+
+   cat "$file" | tr -dc "[:graph:][:space:]"
+</pre>
+<a name="Sorting Lines With Similar Strings"></a>
+<pre>
+
+
+ Sorting Lines With Similar Strings
+ ----------------------------------
+
+ The Awk script used here works in gawk. It may not work in other
+ Awk versions.
+
+   cat log | gawk 'match($0, /REAL TIME = [0-9]+/, arr) { print arr[0] ": " $0 }' | sed 's/^REAL TIME =//' | sort -t ":" -k 1 -nr
+
+ This matches the longest, leftmost occurrance of "REAL TIME = n" on a
+ line, then prints the line with a "n: " prefix. Lines that don't
+ match the pattern aren't printed. These lines are then sorted by the
+ prefix.
+</pre>
+<p style="font-family: monospace">&nbsp;<a href="#Contents">Contents</a></p>
+<a name="Sorting List-like Tables by Column"></a>
+<pre>
+
+
+ Sorting List-like Tables by Column
+ ----------------------------------
+
+ Sort a comma-separated list by numerical values in the second column,
+ from high to low value, followed by sorting the first column alphanumer-
+ ically:
+
+   sort -t',' -k2nr,2 -k1,1 cal_dic.csv > temp;
+</pre>
+<a name="Spell Checking a Text File Created by pdftotext"></a>
+<pre>
+
+
+ Spell Checking a Text File Created by pdftotext
+ -----------------------------------------------
+
+ The main interest here is the pre-processing of the input file, then
+ setting up a command sequence using printf to pipe into the shell,
+ which in this case is dash. The $SPELL variable pointed to the
+ 'aspell' program command line.
+
+ # main engine for producing a spelling_report file.
+ # this routine permits page breaks in the input text file. page breaks
+ # are represented by \014. if breaks are present, then spelling
+ # discrepancies are written by page number.
+ # \42 is the code for a double quote. this is needed so the echo
+ # command passes the entire contents of the file to the spelling
+ # program. in order to get quotes past the shell and into the subshell
+ # they need to be escaped in the sh script.
+ # double quotes need to be stripped from the input file, otherwise
+ # they get nested what cat-ing the input, which gives errors in
+ # the echo command in the awk script. additionally, certain sequences
+ # of $ followed by other characters get interpreted by the shell
+ # script and funky things happen. for example $_ causes an odd
+ # issue. so $ needs to be changed to something else. another problem-
+ # atic character is ` because that means shell command substitution.
+ # hence, we change `, ", and $ to |.
+ # pdftotext can create odd characters that include ^ symbols.
+ # these strange characters are stripped using sed.
+   check() {
+     cat $inFile | sed 's/[\"\$\`]/\|/g' | sed 's/[âÂ]//g'|  awk -v SPELL="$SPELL" -F"\014" '
+       BEGIN {RS="\014"; print "\nSpelling Report\n"; print "Aspell command: "SPELL" list"; print "---------------"} {
+         n=NR;
+         printf("list=`echo %s | %s list`; \
+         page=%s; \
+           if [ \"$list\" != \"\" ]; then \
+             touch ./spellchk~; \
+             echo \"\"; \
+             echo \"Page: ${page}\"; \
+             echo \"\"; \
+             echo \"$list\"; \
+             echo \"---------------\"; \
+           fi;", "\42"$1"\42", SPELL, n) | "dash"
+         close( "dash" );
+       }' >> $outFile;
+     if [ ! -f spellchk~ ]; then
+       echo "No errors." >> "$outFile";
+       echo "---------------" >> "$outFile";
+     fi;
+     rm spellchk~ 2> /dev/null;
+   };
+</pre>
+<p style="font-family: monospace">&nbsp;<a href="#Contents">Contents</a></p>
+<a name="Supplying Arguments to an Interactive Script"></a>
+<pre>
+
+
+ Supplying Arguments to an Interactive Script
+ --------------------------------------------
+
+   ./"$1" -quickbatch `pwd` &lt;&lt; 'EOF'
+   D
+   yes
+   EOF
+</pre>
+<a name="Time Stamp"></a>
+<pre>
+
+
+ Time Stamp
+ ----------
+
+   date "+%H:%M:%S-%F"
+</pre>
+<a name="Unique ID String Generation"></a>
+<pre>
+
+
+ Unique ID String Generation
+ ---------------------------
+
+   UUID=/usr/bin/uuidgen;
+
+   sedCommand="-e \"s/$id/`$UUID -t`/\"";
+</pre>
+<a name="Variable Arrays"></a>
+<pre>
+
+
+ Variable Arrays
+ ---------------
+
+ #! /bin/dash
+
+ # the intent here is to build an array of indexed variables
+
+   for i in `seq 3`
+   do
+     for j in `seq 3`
+     do
+ # use of eval can have security issues, but not here.
+       eval var_${i}_${j}=`echo foo_${i}_${j}`;
+ # need to escape $var so it is evaluated in a second pass.
+       eval echo "var_${i}_${j} is \$var_${i}_${j}";
+     done;
+   done;
+
+   var_1_1 is foo_1_1
+   var_1_2 is foo_1_2
+   var_1_3 is foo_1_3
+   var_2_1 is foo_2_1
+   var_2_2 is foo_2_2
+   var_2_3 is foo_2_3
+   var_3_1 is foo_3_1
+   var_3_2 is foo_3_2
+   var_3_3 is foo_3_3
+</pre>
+<p style="font-family: monospace">&nbsp;<a href="#Contents">Contents</a></p>
+<a name="XML Verification"></a>
+<pre>
+
+
+ XML Verification
+ ----------------
+
+ # write beautified XML
+ $CAT "$t" | $DOS2UNIX | $XMLLINT --format -  | $SED -r 's%^[[:blank:]]+<%<%g' | \
+   $AWK 'BEGIN {ORS = "@|@"} {print}' | $SED -e 's/>@|@</>\n</g' | \
+   $SED -r 's%([[:graph:]])@\|@([[:graph:]])%\1 \2%g' | $SED -e 's%@|@%%g' > "$tempFile";
+
+ This takes input from a file, removes DOS end of lines, beautifies the
+ XML, removes leading whitespace on a line, changes \n to @|@, and
+ changes >@|@< to >\n<.
+ This is to ensure appropriate newlines occur between element tags.
+ After changing >@|@< to a newline, there are three remaining cases
+ for where @|@ appears: between two graphical characters, between two
+ space characters, or between a graph and a space character. These need
+ special consideration because if the \n are present for formatting the
+ original text, then you have to restore them. Otherwise, you can remove
+ them.
+ In the first case, we keep the graphical characters and insert a space
+ between them. In the second two cases we simply drop the @|@. The result
+ is left-justfied XML with tags starting and ending every line.
+
+ # sanity check
+ $XMLLINT --noout $tempFile;
+ if [ $? -ne 0 ]; then $PRINTF "\n   INTERNAL ERROR: Wrote bad ${tempFile}, contact danl.\n"; exit 1; fi;
+</pre>
+<a name="Miscellaneous Awk"></a>
+<pre>
+
+
+ MISCELLANEOUS AWK
+ -----------------
+
+ ~/SCRIPT_FUN/sh_SCRIPTS/DOC_PROCESS_SCRIPTS/verify_bookcase_docs.sh has
+ a number of useful awk scripts that took a while to develop. these
+ are used for parsing whole pages of text and finding things.
+</pre>
+<p style="font-family: monospace">&nbsp;<a href="#Contents">Contents</a></p>
+<pre>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre>
+<hr>
+<p><small>Updated ... Nov 14, 2019</small></p>
+</body>
+</html>

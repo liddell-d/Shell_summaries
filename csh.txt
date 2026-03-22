@@ -1,0 +1,1272 @@
+
+C shell summary.
+
+Credit: "Anderson, Gail and Paul Anderson, "THE UNIX C SHELL FIELD
+         GUIDE." Prentice Hall PTR, Englewood Cliffs, NJ, 1986.
+
+Occasional references are made to funtionality specific to BSD systems,
+which are compliant with the Cal Berkeley implementation of UNIX and
+the C shell. Many, if not all, Linux operating systems are BSD
+compliant.
+
+Contents
+--------
+
+Command Evaluation
+Command History
+Aliases
+Setup Files
+Filename Expansion
+Variables
+Special Characters and Escape Sequences
+I/O Control
+Expressions and Operators
+Conditionals
+Loops
+Background Jobs
+Scripts
+Command Execution and Parsing Order
+Odds and Ends
+Subroutines, Procedures, or Functions
+"Here" Documents
+Directory Stacks
+Debugging
+
+
+Command Evaluation
+------------------
+
+Commands are recognized by name. Some are recognized as built into the
+shell. Others are recognized based upon whether they appear in
+directories specified in the $PATH variable. Still others are recognized
+by their 'alias' names. Aliases are recognized first, then built-in
+commands, then commands in the $PATH.
+
+Complete command syntax must exist on a single line unless a newline
+escape sequence '\' is at the end of a line. A command terminates
+either at a newline or at a semicolon. Incomplete or incorrect
+arguments generate error messages.
+
+Commands are executed in the order they are submitted to the shell. If
+commands are sent to the background (discussed elsewhere in this
+document), they are processed in the background until complete. In the
+mean time, commands executed in the foreground continue to be processed.
+So the completion of commands is not necessarily in the order they are
+initiated.
+
+Placing commands in parentheses: (<cmd>; ...) causes them to be executed
+in a subshell, leaving the current shell active. This allows grouping of
+commands that can be executed together and potentially have their output
+redirected.
+
+`<command>` interprets the command and returns its result. This is often
+used to define variable values, to include output in return values of
+commands like 'echo', or to use the return value of a command as an
+argument in another command. An example of this latter usage is to use
+the output of an 'ls -1' or 'find' command as an argument to a loop
+command.
+
+
+Command History
+---------------
+
+The shell has a command history storage and retrieval mechanism.
+
+Place the following into a setup file:
+
+  set history = 25
+
+Your last 25 commands are remembered by the shell. The 'history' command
+(which is best aliased) will then show the last 25 commands executed in
+the shell.
+
+  set savehist = 10
+
+Saves the last 10 commands in the history buffer and loads them
+automatically in the next session.
+
+A convenient thing to do is to show command numbers in the shell prompt
+so you can execute them later. Here's a simple example:
+
+  set prompt = '\!% '
+
+You can set this in the .cshrc file. Prompts can be more sophisticated,
+but at least having the command number immediately visible makes
+re-using commands easier.
+
+  history [-h] [-r] [N] ::= shows the commands in history buffer.
+      BSD-compliant versions support arguments to the command. N is a
+      positive integer. When specified, just the most recent N commands
+      are displayed. Using -h, the history list lacks the line numbers.
+      This can be useful when saving a script for later use. You can
+      then 'csh' the script to execute it. The -r option reverses the
+      order of the commands so the latest appears first.
+
+  source -h <script> ::= places the commands in <script> into the
+      current history list without executing them.
+
+  !N ::= executes the Nth command in the history.
+
+  !! ::= executes the previous command. This is the same as !-1.
+
+  !-N ::= executes the Nth command prior to the current command line.
+
+  !<string> ::= executes the nearest previous command in the history
+      starting with <string>. The <string> can be any part of a command
+      name beginning with the first letter.
+
+  <command> !* ::= brings all arguments from the previous command (but
+      not the command name itself) into the current <command>. The
+      <command> can be one retrieved from the history using history
+      retrieval commands.
+
+  !?<string>?[%] ::= executes the nearest previous command containing
+  <string>. The <string> can be part of a complete word. If the % is
+  added as a suffix, then the argument of the matched command that
+  contains the <string> is extracted.
+
+  !$ ::= the final word of the previous command.
+
+Individual words and special shell characters can be retrieved from
+commands it the history queue as follows:
+
+  <hist_command>:{N | * | N* | $}[-{N | $}]
+
+  <hist_command> ::= history retrieval command that starts with !.
+  :  ::= literal operator.
+
+  N  ::= non-negative integer corresponding to an argument from the
+         retrieved command. 0 corresponds to the command name retrieved
+         from the history queue. Subsequent integers correspond to the
+         arguments of the retrieved command.
+
+  *  ::= corresponds to all arguments from the retrieved command
+         (but not index 0). If * is used, the optional range argument
+         may not be.
+
+  N* ::= has the same semantics as N-$.
+
+  $  ::= corresponds to the final argument from the retrieved command.
+         If $ is used, the optional range argument may not be.
+
+  -  ::= optional literal argument that indicates a range of arguments
+         is selected.
+
+Here is an example:
+
+  ls !20:2-$
+  ls !20:2*
+
+Both execute ls with the third through final arguments of command 20 in
+the history queue.
+
+Other history mechanisms:
+
+  ^<this>^<that> ::= replaces <this> by <that> in the previously
+      executed command's argument list and then executes the new command.
+
+  <hist_command>:[g]s/<this>/<that>/ ::= replaces <this> by <that> in the
+      command retrieved from the history queue by <hist_command>. If the
+      g option is used, the substitution occurs globally in the
+      arguments of the retrieved command. Otherwise, only the first
+      argument is affected. The / delimiters are arbitrary. Best not
+      used for pathname modification. If the search pattern <this> is
+      blank, the previous search pattern in the buffer is used.
+      Within a given string constant, this substitution does not work
+      across spaces; it only applies to the first word in the string
+      constant.
+
+  <hist_command_string>:p ::= prints a string of history retrieval
+      commands in fully expanded form but does not execute it. This
+      allows reviewing a command built from the history buffer, possibly
+      with argument access or editing commands affixed, before actually
+      executing it. The previewed command is stored in the history
+      for easy access with !!.
+
+  <arg_retrieval_command>:[g]{e | h | r | t} ::= returns portions of
+      pathnames retrieved by <arg_retrieval_command>.
+      The <arg_retrieval_command> is a history retrieval command that
+      selects command arguments. The meanings of the g through t options
+      are discussed under $<pathvar>:[g]<operator> in the Variables
+      section. Here is an example:
+
+  % ls bin/MACRO bin/yacad
+  ...
+  % echo !*:gt
+  echo MACRO yacad
+  MACRO yacad
+  % echo !-2:1:t # get the second argument from two commands prior
+  echo MACRO
+  MACRO
+
+It's a bit contrived, but it shows how it works.
+
+  !{<string1>}<string2> ::= executes the nearest command starting with
+      <string1> and appends <string2> to that.
+
+Notes:
+
+Failed commands become part of the history buffer.
+
+Commands are stored verbatim in the buffer without expansion of any
+aliases, variables, file globbing wildcards, and without command
+substitution.
+
+Special symbols count as command words when retrieving arguments, but
+not the - when used as part of an option.
+
+
+Aliases
+-------
+
+Aliases are user names for command scripts. Aliases run *faster* than
+shell scripts, but they do take up memory. So it's a good idea only
+to store aliases you use frequently.
+
+Any commands that are normally available in the shell can be used in an alias.
+
+If you pass arguments to the alias on the command line:
+
+  % myalias arg1 arg2 ... argN
+
+these strings in the alias itself reference the passed in arguments:
+
+  \!!   entire command line
+  \!*   all arguments to the alias name
+  \!^   first argument
+  \!:N  Nth argument, indexed starting at 1
+  \!$   final argument
+
+Note the \ is needed to escape the special meaning of !.
+
+This shows a handy alias for finding any file in your $HOME tree:
+
+  alias ff "(find ~ -name '\!*' -print > /dev/tty) >& /dev/null"
+
+Generally, single-quoting the entire alias is desirable. However, single-quotes
+cannot be nested. Note that single-quotes protect wildcards and variables from
+premature expansion.
+
+The semicolon separates commands on the same line and is protected by
+single-quotes as well as double-quotes.
+
+If separating an alias onto multiple lines, each line except the final one
+needs two backslashes \\. This prevents an incorrect newline from being inserted
+into the command sequence.
+
+The 'source' command can be run by an alias, which allows execution of
+scripts by the alias.
+
+Aliases can be placed in any file, but ~/.alias is a common convention.
+You can automate your aliases by doing this:
+
+  source .alias
+
+in the .cshrc file.
+
+Aliases can be used in a similar manner as subrountines or functions in other
+languages.
+
+
+Setup Files
+-----------
+
+All setup files contain csh commands.
+
+~/.cshrc is a local environment setup file and is executed before
+~/.login when the shell starts. .cshrc is the preferred place to put
+(or source) alias and history commands and is frequently used to set
+environment variables.
+
+.login is the better place for comments echoed to the shell at login.
+The following are good to place in the .login file:
+
+  stty intr ^c erase ^h kill ^u susp ^y
+  stty -tabs
+
+The 'source' command runs a csh script in the current shell. No subshell
+is created. Be aware that any variables in the sourced script are now
+the ones in effect, so the script will override variables in the shell.
+
+The ~/.logout file is executed upon logging out.
+
+
+Filename Expansion
+------------------
+
+There are a number of mechanisms that can be used to match multiple
+filenames.
+
+  ? ::= acts as a wildcard to match any single character in a filename.
+
+  * ::= acts as a wildcard to match all filenames in a path when used by
+        itself, or filenames in a path that share parts of a string in
+        which the * appears. For example, app* would match apple,
+        appliance, application, appointment, and so forth.
+
+  '['<string>']' ::= matches any single character in the <string>.
+        Perhaps a bit more useful is [<char1>-<char2>] where the hyphen
+        is literal and represents a range of characters between and
+        including <char1> and <char2>, similar to regular expression
+        syntax.
+
+Do not quote strings using these operators because then they won't be
+expanded properly.
+
+The preceding do not match hidden files unless you literally show the
+"." prefix.
+
+  ~ ::= matches the user's home directory. ~<username> matches the home
+        directory of the specified user name.
+
+  {<string1>,<string2>[...,<stringN>} ::= matches any of the strings as
+        part of a filename, for example, they can be file extensions.
+        If the strings are themselves filenames, the files get matched.
+
+This:
+
+  <pathname>/{<file1>,<file2>,<file3>...}
+
+is a shorthand way of referencing multiple files. It can be particularly
+useful for directory creation.
+
+The nonomatch variable can be handy for turning off "No match." messages
+when a filename cannot be matched:
+
+  set nonomatch
+
+To turn the messaging back on again, unset nonomatch.
+
+Sometimes it can be helpful to turn of filname expansion by the special
+metacharacters. This can be done as follows:
+
+  set noglob
+
+As long as this is set, filenames are not expanded. This also affects
+variables like $argv[<N>]. If you have a statement like this:
+
+  find $home -name $argv[1] -print
+
+$argv[1] is a filename. Depending on what that filename is, you may not
+want it expanded prematurely. Setting noglob is one way to do this, but
+probably the easier thing to do is to double-quote: "$argv[1]".
+
+
+Variables
+---------
+
+Assigning string shell variables is as follows:
+
+  set <var> = <value>
+
+If <value> contains more than one word, then <value> should be quoted
+(if not, only the first word in a string is stored in <var>). The
+<value> can also be constructed as a list: (<word1> <word2> ...)
+
+Numeric (integer) variables are assigned as follows:
+
+  @ <var> <operator> <expression>
+
+The details of this are discussed under "Expressions and Operators."
+Note that all variables are stored internally as strings.
+
+Variables are de-referenced using $<var>.
+
+Each word in a variable can be accessed by an index range: $<var>[N[-Q]]
+where N and Q are positive integers (the range form with -Q is
+optional). Note this is indexed from 1 not 0. 0 is allowed but returns
+nothing.
+
+Variables are unset with the 'unset' command.
+
+Variables need to be insulated from other words that begin with letters
+or numbers when the variable is next to them. For example:
+
+  ${var}string
+
+allows $var to be accessed properly. Another usage of braces is this:
+
+  /user/home/$dir{suffix1,suffix2}
+
+After $dir is evaluated, there are two possible pathnames that can be
+referenced.
+
+The back-tic characters return the output of a command:
+
+  set var = `<command>`
+
+The output acts as if grouped by parentheses. Be aware that command
+substitution changes newlines into spaces. This often works to your
+advantage, such as with 'ls'.
+
+The following are some special variables:
+
+  $argv[N] ::= special variable that stores the command line args, where
+         N is an index as described previously, along with the range
+         definition. In a script, it's a good idea to check than $#argv
+         is non-empty before referencing $argv[1] or any of the other
+         arguments from the command line.
+
+  $$ ::= current process number. This can be useful in constructing
+         unique temporary file names.
+
+  $#<var> ::= number of words in the variable <var>. $#argv is often
+         useful in simpler scripts to sanity check the command line. It
+         stores the number of command line args.
+
+  $?<var> ::= returns 1 if <var> is set and 0 otherwise.
+
+  When using this form in an if block, be sure to use this form:
+
+    if ( $?<var> ) then
+      <commands>
+    endif
+
+  rather than the single-line 'if' form.
+
+The $#<var> and  $?<var> variables allow for simpler coding of
+conditional tests in if blocks when you only need to know if a variable
+is set or has something in it rather than checking for the exact
+contents of the variable.
+
+If a variable can be interpreted as a file type inquiry operator like
+-e or -w, then be sure to quote the variable reference.
+
+There are some special variable operators that return various variable
+contents when the variable stores a pathname. The general form is this:
+
+  $<pathvar>:[g]<operator>
+
+These are operators of interest when the variable stores a pathname:
+
+  g ::= causes the operator action to be performed on all members of
+        $var. g can be used alone. If it's used with other operators,
+        it must precede them.
+  h ::= returns the pathname up to the terminating filename.
+  r ::= returs the pathname up to the file extension.
+  t ::= returns the tail of the pathname.
+  e ::= returns the file extension on BSD-compliant systems.
+
+If $<pathvar> is not a pathname, the shell returns an error.
+
+Environment variables are set using the 'setenv' command. You can see a
+list of all current environment variable settings by using the 'env'
+command. Environment variables are system globals can be accessed by any
+script called in the shell.
+
+Here are some common ones:
+
+  HOME ::= user's home directory.
+  PATH ::= pathnames of directories where executables can be called
+           directly from the command line. Analogous to the shell's
+           'path' variable. The two variables use different syntaxes.
+  USER ::= environment variable that corresponds to username.
+
+Some useful built-in variables:
+
+  path ::= defines absolute pathnames of directories where executables
+           can be called directly from the command line. A typical
+           form is this:
+
+  set path = ( ~/bin /bin /sbin /usr/bin /usr/sbin )
+
+The PATH environment variable is updated by path and vice-versa. The
+PATH env variable uses a colon-delimited list.
+
+  cdpath ::= defines absolute pathnames of directories that 'cd' will
+      allow you to change into without actually being in the parent of
+      those directories. In essence, it defines directory paths that
+      your current location is always the parent of.
+
+  home ::= path of the user's home directory. This variable's value is
+      taken from the HOME env variable by default.
+
+  shell ::= pathname of the user's default shell. The SHELL environment
+      variable is related but needs to be set separately.
+
+  prompt ::= defines the shell prompt string.
+
+  umask ::= defines the permissions that are automatically set for
+      files the user creates. It uses the octal complement of the
+      numeric settings of the chmod command for directories. For files
+      it is nearly the same, except that the 'x' bit isn't set for
+      plain files by umask. This is obviously for security reasons.
+
+The 'set' command displays current shell variable settings.
+
+
+Special Characters and Escape Sequences
+---------------------------------------
+
+The special characters include these:
+
+  SPACE, TAB, RETURN
+              $ ::= variable reference
+  * [ ] - ? { } ::= file expansion
+                    (* and - are also arithmetic operators)
+        > < & ! ::= file redirection; also used as operators
+            ! ^ ::= command history; force write; also used as operators
+              | ::= pipe; if doubled; OR
+              ; ::= end of command
+            ( ) ::= grouping
+          \ ' " ::= quoting (escaping)
+             `` ::= command substitution
+              & ::= background; also used in certain operators
+              / ::= division
+              % ::= modulus
+              ~ ::= home directory; also used in certain operators
+
+Some of these characters are also used as operators in evaluating
+expressions, so they have different meanings dependent on the context.
+
+Any character that is special to the shell must be escaped if it is to
+be treated as a literal.
+
+  \<char> ::= escapes the special meaning of any shell metacharacter
+              <char>, including itself. At the end of a line, escapes
+              the (usually invisible) newline character.
+
+  "<string>" ::= escapes the special meaning of all metacharacters in
+                 <string> except $ ! ` \.
+
+  '<string>' ::= escapes the special meaning of all metacharacters in
+                 <string> except ! and \.
+
+  $<var>:x ::= when $<var> is a quoted string containing embedded spaces
+               and tabs, the individual words are treated as double-
+               quoted and are transformed into a wordlist. Example:
+
+  set var1 = "one two"
+  echo $#var1
+  1
+  set var2 = ($var:x)
+  echo $#var2
+  2
+
+This is particularly handy when <var> contains metacharacters that can
+be escaped by " ".
+
+  $<var>:q ::= when $<var> is a wordlist, the list is maintained and is
+      treated as double quoted. This is used to suppress expansion of
+      words in <var>. Here is an example:
+
+  set var = "str1 str2"
+  grep $var *
+  grep: str2: No such file or directory
+  grep $var:q *
+  (this works OK)
+
+Here you could just as well double-quote $var. If <var> contains file
+expansion metacharacters, :q can be useful to escape their special
+meaning. Double-quoting doesn't work then, because it doesn't preserve
+the list.
+
+Quoting of special characters appearing in arguments to various commands
+can be tricky. Here's an example from an alias:
+
+  alias layers '<some_command> | awk "{print "\$1","\$2"}; "\$1"="\$2"="\$3"="\"\""; {print substr("\$0",3)}"'
+
+Notice that within the single quotes of the script, both the $ and
+literal " characters still need to be escaped by a \. And beyond this,
+they also need to be quoted by double quotes. This latter requirement
+is quite odd because the awk script is already quoted, and awk itself
+doesn't require (and won't work) with the quotes as shown within awk
+itself.
+
+Here is another example. This doesn't work:
+
+  % printf "foo=\"bar\"\nbar='foo'\n"
+  Unmatched ".
+
+but this does:
+
+  % printf "foo="\""bar"\""\nbar='foo'\n"
+  foo="bar"
+  bar='foo'
+
+One way to think about this is to separate the quoted strings that
+have no escaped quotes:
+
+"foo="
+"bar"
+"\nbar='foo'\n"
+
+what is left are the escaped quotes around the string "bar", which
+are handled as literal strings. So after removal of the unescaped
+double quotes, we have these strings:
+
+foo=
+"
+bar
+"
+\nbar='foo'\n
+
+which form the output.
+
+The bottom line is, csh handling of special metacharacters is sometimes
+rather strange. It may require patience and experimentation to get
+things to work the way you want.
+
+
+I/O Control
+-----------
+
+Reading input from the keyboard is performed with the "gets" command:
+
+  set <var> = `gets`
+
+or, in BSD-derived csh:
+
+  set <var> = $<
+
+Example:
+
+  echo -n "Enter year: "
+  set year = $<
+
+Now $year contains the response entered at the command line. (Usually
+you'd want to do some sanity checking on the form of the year to see if
+it's valid.)
+
+I/O is accomplished with shell commands and redirection constructs.
+
+  <command1> | <command2> ::= directs STDOUT from <command1> to STDIN of
+      <command2>. This only works if the output of <command1> is to
+      STDOUT, and <command2> reads from STDIN.
+
+  set noclobber ::= prevents accidental overwriting of an existing file
+  or automatic creation of a non-existent file.
+
+Following are output and input redirection operators:
+
+  > <file>  ::= redirects STDOUT to <file>. Overwrites if <file> exists.
+
+  >> <file> ::= redirects STDOUT and appends to <file>. Creates <file>
+                if it doesn't exist.
+
+  <operator>& <file> ::= regular behavior of <operator> and includes
+                         STDERR in the output. This works for | also.
+    Example:
+
+      <command> |& <command>
+
+    causes diagnostic messages to be output by the pipe in addition to
+    what normally is.
+
+  >[&]! <file> ::= same as > but overrides noclobber protection of
+                   existing <file>.
+
+  >>[&]! <file> ::= same as >> but overrides noclobber protection of
+                    non-existent <file>.
+
+  <command> < <file> ::= causes <file> to be used as STDIN.
+
+To separate STDOUT from STDERR messages, you can do this:
+
+  (<command> <arg1> <arg2> ... > <outfile>) >& <errorfile>
+
+Issuing "-" first in a command means read from STDIN first. This is
+potentially useful in pipelines:
+
+  date | cat - <filename>
+
+This puts a timestamp at the top of the contents of <filename>. It also
+works for < redirection from a file in certain cases. For example, if a
+command has an interactive mode upon calling it, but it could take a
+script as input, you can say something like this:
+
+  command - outfile < script
+
+
+Expressions and Operators
+-------------------------
+
+Expressions are sets of characters that evaluate to an integer. They can
+include constants (numeric or string), variables, and operators.
+Expressions that evaluate string values internally have a numeric
+representation.
+
+C-shell math can only process integers and is computationally slow.
+Integer-valued variables are stored internally as strings.
+
+A common context for using operators and expressions is numeric
+variables. These are declared as follows:
+
+  @ <variable> <operator> <expression>
+
+  <variable>   ::= name for a variable
+  <operator>   ::= assignment operator
+  <expression> ::= mathematical expression
+
+Note that the expression need not be quoted and does not require any
+special command like 'expr' to evaluate it. However, enclosing the
+expression in parentheses is never wrong, adds readability, and, for
+certain operators, is required to prevent them from being interpreted
+as other shell metacharacters.
+
+The assignment operators are these:
+
+   = ::= sets the <variable> equal to the <expression> value
+  += ::= increments the <variable> by the <expression> value
+  ++ ::= increments the <variable> by 1 (no space before operator)
+  -= ::= decrements the <variable> by the <expression> value
+  -- ::= decrements the <variable> by 1 (no space before operator)
+  *= ::= multiplies the <variable> by the <expression> value
+  /= ::= divides the <variable> by the <expression> value
+
+Common operators used in expressions:
+
+  () ::= grouping
+  !  ::= logical negation
+  *  ::= multiplication
+  /  ::= division
+  %  ::= modulus
+  +  ::= addition
+  -  ::= subtraction
+  || ::= logical OR
+  && ::= logical AND
+
+They are listed in order of precedence. * / % are of equal precedence,
+and + - are of equal precedence. When occurring in the same expression
+and are at the same level of precedence, these operators are evaluated
+from left to right within their respective classes.
+
+There are also some bitwise operators that are not listed but are useful
+for binary applications.
+
+Comparison operators:
+
+  <, >, <=, >=  ::= usual mathematical meanings, only numeric
+        ==, !=  ::= tests equality, even for strings
+        =~, !~  ::= tests for pattern match (BSD systems only)
+
+  The pattern matching operators can use the *, ?, and [ ]
+  metacharacters on the righthand side that are also used in filename
+  matching, and they behave similary in their matching behaviors except
+  for the filename aspect. When using these operators in a pattern
+  matching expression, be sure to double-quote the expression.
+  Otherwise, they act like filename expansion metacharacters.
+
+The first set of operators has the highest precedence. The others are of
+equal precedence. Comparison operators have lower precedence than
+arithmetic operators and higher precedence than logical operators.
+Left-to-right evaluation occurs as needed in a similar way to arithmetic
+and logical operators.
+
+File test operators are used in parentheses along with a reference
+to a file:
+
+  -r ::= readable
+  -w ::= writable
+  -x ::= executable
+  -e ::= exists
+  -d ::= directory
+  -f ::= plain file
+  -o ::= owner
+  -z ::= zero length
+
+Any of these can be negated with the ! operator in an expression.
+
+
+Conditionals
+------------
+
+The simplest form of a conditional statement is this:
+
+  if ( <condition> ) <command>
+
+The most general is this:
+
+  if ( <condition> ) then
+  ...
+  else if ( <condition> ) then
+  ...
+  else
+  ...
+  endif
+
+The else if and else branches are optional and may be used together or
+separately.
+
+It's important not to place a semicolon after an endif, otherwise odd
+errors can be given. This seems to be a bug.
+
+These operators can be inserted between commands for conditional
+execution based upon success of the commands they connect:
+
+  <command1> && <command2> ::= <command2> is executed only if <command1>
+                               succeeds.
+  <command1> || <command2> ::= <command2> is executed only if <command1>
+                               fails.
+
+ This is an instructive example:
+
+   <command> >& outfile || mail <user> < outfile
+
+ If the first command fails, the error message is sent to outfile. The
+ mail command is then executed with outfile as input. If the first
+ command succeeds, its output goes only to outfile.
+
+ The switch command is a shorthand means of coding multiple if
+ statements. This is the basic form:
+
+  switch ( <string> )
+    case <pattern1>:
+      <commands>
+      [breaksw]
+    case <pattern2>:
+      <commands>
+      [breaksw]
+    default:
+      <commands>
+  endsw
+
+Note: It is problematic to use terminating semicolons in the 'switch' block!
+
+  switch ::= indicates a set of conditional statements that evaluate
+             the <string>.
+  endsw  ::= keyword that terminates the previous switch keyword's
+             scope.
+  case   ::= keyword that indicates a condition block. if the <patternN>
+             specification matches the <string>, then that case block is
+             executed.
+  <string> ::= a string to be matched. frequently this is a variable,
+             and it often refers to a command line argument, such as
+             y $argv[1] (used in a loop with the switch command).
+  <patternN> ::= a string pattern used to match <string>. if the
+             <string> is matched, then the code in the current case
+             block is executed. <patternN> can use the *, ?, and [ ]
+             metacharacters that are also used in filename matching. but
+             if these metacharacters are used in the context of a
+             pattern string, they act in an analogous way to filename
+             matching but apply to matching the <string> instead.
+  default ::= keyword that indicates the "fall-through" case to execute
+             when all other patterns fail to find a match.
+  breaksw ::= an optional keyword that terminates a case block. usually
+             this keyword is present. however, if it is omitted, then
+             all case blocks are executed until the next breaksw command
+             is encountered, or the endsw command. in this way, nested
+             conditions can be applied for a matched <string>.
+
+Example:
+
+  while ( $#argv )
+    switch ( $#argv[1] )
+      case -a:
+        echo "-a option is used"
+        breaksw
+      case -b:
+        echo "-b option is used"
+        breaksw
+      default:
+        echo "Error: disallowed option $#argv[1]"
+    exit 1
+    endsw
+    shift
+  end
+
+This cycles through all the command line arguments in argv. If the -a
+option is used, that is reported. If the -b option is used, that is
+reported. If any other option is used, that gives an error message and
+the program terminates.
+
+Loops
+-----
+
+For each loops are used for some presumably well-defined list of
+words. (As a performance tip, when processing files in a directory,
+it's best to cd or pushd into the directory first before processing
+the files rather than specifying a fully-qualified pathname to the
+directory.) The whitespace around <list> is important!
+
+  foreach <var> ( <list> )
+    <commands>
+  end
+
+  <var>      ::= variable to store the current value from the <list>
+  <list>     ::= whitespace-delimited list; file expansion operators
+                 work
+  <commands> ::= any commands to be performed in the loop
+
+Example:
+
+  foreach file ( * )
+    if ( -f $file ) then
+      echo "File: $file Type: `file $file | cut -d: -f2`"
+    endif
+  end
+
+While loops are used to test whether some condition is true, and so long
+as it is true, the loop executes some code:
+
+  while ( <expression> )
+    <commands>
+  end
+
+  <expression> ::= some expression that evaluates to true or false
+  <commands> ::= any commands to be performed in the loop
+
+A convenient command to use in while loops is 'shift'.
+
+  shift [<var>] ::= by default, <var> is taken to be #argv and shift
+    decrements $#argv (assuming it's not 0) each time through the loop.
+    Within the loop, $argv[1] is used to reference the current argument
+    in argv. So shift iteratively moves each argument into the $argv[1]
+    slot until there are no more arguments. If <var> is used, then
+    <var> is some variable name, and $#var is what gets decremented.
+    shift changes the values in $var[1].
+
+Here's a whimsical example. First, an uglier method:
+
+  set var = (the cow says)
+  while ( $var[1] != "" )
+    if ( $var[1] == says ) then
+      echo "moo"
+      break
+# break is ugly but needed to avoid shift giving a
+# confusing message about "Subscript out of range"
+    endif
+    shift var
+  end
+
+This implementation behaves better:
+
+  while ( $#var )
+    if ( $var[1] == says ) then
+      echo "moo"
+    endif
+    shift var
+  end
+
+These commands can be used in the context of a loop:
+
+  break ::= stops iterations in the current loop and causes execution
+            to resume at the next end statement.
+
+This form is allowed (similarly for foreach loops):
+
+   while ( <expression> )
+     if ( <expression> ) break
+     <commands>
+   end
+   # execution resumes here upon break
+
+ If the 'if' condition is true, the break is executed. Otherwise, the
+ loop continues and the <commands> are performed.
+
+ The continue command re-starts a loop.
+
+   continue ::= skips the remainder of the body of the current loop
+                and returns to the beginning of that loop. In a foreach
+                loop, the next item in the word list is used as the
+                entering argument for the loop iteration. In a while
+                loop, the initial condition is tested, and, if true,
+                the body of the loop is executed.
+
+The special allowed form of loop discussed under 'break' is also
+permitted for 'continue'. The only difference is, continue takes the
+loop to before the 'end' statement instead of after it.
+
+
+Background Jobs
+---------------
+
+Placing a & at the end of a command runs the command in the background.
+This returns a job number that is useful for later queries.
+
+  bg [%<job #>] ::= when issued without any arguments, restarts the most
+      recently suspended job in the background. When issued with an
+      argument, the specified job is restarted in the background if the
+      job is suspended. The <job #> can be determined from the jobs
+      command or the job number returned to the shell at initial
+      execution of a background job.
+
+  fg [%<job #>] ::= when issued without any arguments, restarts the most
+      recently suspended job in the foreground or moves the most
+      recently added job to the background queue to the foreground. When
+      issued with an argument, the specified bacground job is moved to
+      the foreground. The <job #> is as described previously.
+
+  jobs ::= reports jobs running in the background. (BSD versions)
+
+  ps ::= reports all currently running processes.
+
+  ctrl+z ::= suspends the current foreground job and keeps it in the
+      foreground.
+
+  stop {<PID> | %[<job #>] | %<command> | %?<string>} ::= suspends a
+      background job as specified by the accompanying argument. If % is
+      issued by itself, the most recently added background job is
+      suspended. The <job #> is as described previously. The %? form
+      matches the <string> in a command line, if possible.
+
+  kill {<PID> | %[<job #>] | %<command> | %?<string>} ::= terminates a
+      job. If % is issued by itself, the current job in the foreground
+      is terminated. The <job #> is as described previously. The %? form
+      matches the <string> in a command line, if possible.
+
+  set notify ::= causes status changes in background jobs to be reported
+      immediately to the shell. Normally the reporting is delayed until
+      there is a new shell prompt.
+
+  nohup <command> & ::= enables <command> to run in the background even
+      after logging out.
+
+  limit cputime <seconds> ::= limits the amount of time background jobs
+      can run; prevents runaway jobs. this is probably most useful when
+      used as part of a command group, as here:
+
+      (limit cputime 3600; <command>; ... <command>) &
+
+      that way it applies only to commands in the group.
+
+  unlimit cputime ::= allows any background job to run to completion.
+
+
+Scripts
+-------
+
+Scripts must have a # character in the first column of the first line of
+the file. Any of the C shell constructs may be used in a script.
+
+Many C shell scripts begin with this line (BSD systems):
+
+  #! /bin/csh -f
+
+which means running the script without accessing the ~/.cshrc file. This
+is done for performance reasons. When this is used, any aliases are not
+available to the script. Environment variables set by the .cshrc file
+may not be available either.
+
+The # character, aside from the instance mentioned previously, indicates
+a comment line. The comment either starts at the beginning of a line or
+after a command. Note that in the latter case, a semicolon is not
+necessarily required to terminate the command. The behavior of comments
+inside a loop can be weird. For example, if this is inside a while loop:
+
+  break;  # this is ugly, but needed to avoid an odd message
+
+the shell gives this message:
+
+  #: Command not found.
+
+so probably best to leave comments outside loops.
+
+argv is a special variable that stores command line arguments:
+
+  $argv'['N[-P]']' ::= stores the command line args, where N is a
+      positive integer. * is allowed, which expands all input arguments.
+      -P represents a range limit, where - is literal and P > N. $#argv
+      is the number of command line arguments and is often convenient
+      to use for P. Note that $argv[0] is not the command name; $0 is.
+
+$1 through $9 are suitable abbreviations for the first 9 command line
+arguments. $* is a suitable abbreviation for $argv[*]. The final
+argument on the command line can be referenced by $argv[$#argv].
+
+The 'exit' command is used to terminate a script:
+
+  exit [ <integer> | '('<expression>')' ] ::= terminates a script and
+       optionally returns a value. An <integer> can be any integer and
+       does not need to be in parentheses. An <expression> is allowed
+       but must be in parentheses.
+
+The exit value of a script can be retrieved with the $status variable.
+The value in this variable is from the last returned exit value in the
+current shell.
+
+As with any scripting language, tools that are expected to be used in
+pipelines with other commands should only output what is needed.
+Diagnostic sorts of messages are unhelpful in such cases because they
+require filtering in a pipeline.
+
+The 'source' command references a file and executes it in the current
+shell as a script.
+
+
+Command Execution and Parsing Order
+-----------------------------------
+
+C shell parses text in this order:
+
+    1. History substitution. Any immediately accessible calls to the
+    command history mechanism are expanded first. Escaped history
+    substitution like \!* is not performed at this point.
+
+    2. Word identification. Any string delimited by a space or tab is a
+    word. Quoted strings are considered to be single words, even if they
+    have embedded whitespace.
+
+    3. Update the history list.
+
+    4. Recognition of quoted strings.
+
+    5. Alias substitution.
+
+    6. Recognition of I/O redirection, pipelines, and background
+    execution requests. I/O redirection has implications, especially for
+    output. Any files for output are prepared for writing at this time,
+    including any that could be overwritten.
+
+    7. Variable substitution.
+
+    8. Command substitution (back-tic substitution). Execution of the
+    command that provides the substitution output occurs in a sub-shell,
+    where all the parsing rules apply.
+
+    9. Filename expansion.
+
+    10. Command execution. This is where the shell interacts with the
+    operating system to perform commands.
+
+For the command line, commands internal to the shell are executed
+directly in the shell. Commands that are not a part of the shell spawn
+child shells which are then executed by the 'exec' command. Scripts are
+executed in a separate shell, not a child.
+
+If you add a command to one of the locations in your $PATH, and you want
+that command to be accessible in the current shell session, use the
+'rehash' command. This re-initializes the internal command hash table,
+so the new command can be found.
+
+
+Odds and Ends
+-------------
+
+  goto <labelname> :: stops execution of the script at the current
+    location and resumes at the line after the <labelname>. In the
+    body of the script, the target location is "<labelname>:". Note the
+    colon. May be used anywhere in the script and may be repeated.
+    Best not to use this often.
+
+Example:
+
+  while ( <expression> )
+    if ( <condition> ) goto loc:
+    <commands>
+  end
+  loc:
+  # execution resumes here after goto
+
+ If the 'if' condition is true, the script skips to the line after
+ "loc:".
+
+
+ Subroutines, Procedures, or Functions
+ -------------------------------------
+
+ C shell does not have a subroutine construct per se. This behavior can
+ be mimicked to an extent by using aliases. Example:
+
+  alias do1 'echo "1"';
+  alias do2 'echo "2"';
+  alias do3 'echo "3"';
+  alias do4 'echo "4"';
+
+  @ i=1;
+  while ( $i < 5 )
+    set cmd="do${i}";
+    echo "$cmd";
+    eval $cmd;
+    @ i++;
+  end;
+
+  do1
+  1
+  do2
+  2
+  do3
+  3
+  do4
+  4
+
+But aliases become unwieldy the longer they get.
+
+
+"Here" Documents
+----------------
+
+In cases where you want to create text input to a command on the fly,
+you can use something called a "here" document. Here's the basic form:
+
+  <command> [<args>] << <string>
+    <input text>
+    ...
+  <string>
+
+  <command> ::= some command or alias name
+  <args>    ::= optional arguments
+  <<        ::= input redirection operator
+  <string>  ::= any without whitespace
+  <input text> ::= the text you want to send to the command
+
+This construct can be used interactively or in a script. Here documents
+can be very useful in a script context if the <command> requires
+interactive input from the command line.
+
+
+Directory Stacks
+----------------
+
+In BSD-compliant C shells, you can go to a directory location and have
+this stored in a stack for later reference and execution. These commands
+facilitate this feature:
+
+  pushd <pathname> ::= changes directories to the <pathname> and puts
+    that current directory into the directory stack.
+
+  popd ::= changes directories to the previous pathname in the directory
+    stack and places that pathname at the top of the stack.
+
+  dirs ::= lists the directories in the directory stack.
+
+
+Debugging
+---------
+
+The csh command has a number of debugging options:
+
+  -n ::= runs the syntax checker but does not execute the script. This
+         finds many common problems.
+
+  -v ::= runs in verbose mode. Each line of the script is echoed before
+         it's run, but before file, command, or variable substitution
+         occur.    This can be useful in narrowing down where precisely
+         an error occurs. -v is more useful when used together with -n
+         or -x.
+
+  -x ::= similar to -v mode, but performs all the substitutions that
+         -v doesn't. Probably best to use it with -v so you can see
+         the before and after versions of the line.
+
+This command is the common debugging mode:
+
+  csh -fvx <script_name>
+
+or (BSD systems):
+
+  #! /bin/csh -fvx
+
+The shell has a built-in time command:
+
+  time <command> ::= returns the following statistics about <command>:
+
+    time spent in the system
+    CPU time spent executing the command
+    elapsed (real) time spent executing the command
+    percentage of CPU time represented in the elapsed time
+
+Elapsed time generally varies more than CPU time as elapsed time is
+affected by system load.
+
+The common way to use it:
+
+  time <command>  > /dev/null
+
+
+
+
+
+
+
+

@@ -1,0 +1,1533 @@
+Tcl commands and constructs
+
+Credit: Ousterhout, J. K., "Tcl and the Tk Toolkit." Addison Wesley,
+1994.
+
+Most of what is contained here is from the Ousterhout book, which dates
+to 1994. Certain constructs from later releases have been added.
+
+Tcl is case-sensitive.
+Most things in Tcl are strings.
+Commands are comprised of words separated by spaces or tabs.
+Commands are separated by newlines or semicolons.
+
+Contents
+--------
+Comments
+Command Evaluation
+Quoting
+Variables
+Querying Variables
+Lists
+Arrays
+Strings
+Expressions
+Flow Control
+Procedures
+File I/O
+Processes
+Error Management
+Command Environment
+Command History
+
+
+Comments
+--------
+
+# this is a comment
+
+set value 1 ;# this is also a comment
+
+#this is not a comment in earlier versions
+
+set value 1 # this is not a comment
+
+
+Command Evaluation
+------------------
+
+Commands are separated by newlines or semicolons.
+
+The first word on a line is a command (even #). Everything else is
+arguments to the command.
+
+Words are separated by spaces or tabs.
+
+Words have arbitrary string values.
+
+Spaces, tabs, newlines, and semicolons are not part of words.
+
+Initially, everything in Tcl is a string. The Tcl pre-processor
+(interpreter) applies no meaning to any string at the parsing stage;
+however, variable substitution does occur at the parsing stage, when
+specified. If the first word on the line is a valid command, then the
+command procedure is called. The command procedure applies meaning to
+the words, not the Tcl pre-processor.
+
+Bracket evaluation:
+
+    [<command> <args>]
+
+Evaluates the <command> and returns its value.
+
+Evaluation command:
+
+    eval <arg> [...]
+
+Concatenates all the <arg> entries and then evaluates them as a Tcl
+script. A script must be quoted when it spans lines.
+
+eval induces an additional round of parsing, which allows for variable
+substitution:
+
+   set w "world"
+   set cmd {puts "hello $w"}
+   $cmd
+   invalid command name "puts "hello $w""
+   eval $cmd
+   hello world
+
+If you want variable substitution to occur without evaluation of the
+string as a Tcl script, then the 'subst' command is useful:
+
+   subst $cmd
+   puts "hello world"
+
+If evaluation of a math expression is desired, it must be requested
+explicitly. As an example, here is how you set a variable:
+
+    set a 1; # a is 1
+    set b $a+1; # b is 1+1
+
+Notice this second command does not attempt to evaluate 1+1. The
+explicit form of expression evaluation is this:
+
+    set b [expr {$a+1}]
+    # b is 2
+
+The eval command is used to create commands:
+
+    set cmd "set b [expr {$a+1}]";
+    eval $cmd;
+    # eval evaluates $cmd as a Tcl script
+
+One of the more pervasive applications of eval has been to force
+additional levels of parsing. For example:
+
+    set vars {a b c d e};
+    unset $vars;
+
+This isn't going to work as one might hope. The intent is to treat a b
+c d e as distinct variable names, but vars = "a b c d e".
+
+The historical solution was to do this:
+
+    set vars {a b c d e};
+    eval unset $vars;
+
+This causes unset $vars to be evaluated as a script. Hence, unset a b c
+d e, which unset interprets as distinct arguments. But aside from being
+ugly, this represents a security risk. Starting with Tcl 8.5, this is
+the preferred idiom:
+
+    unset {*}$vars
+
+Sourcing other scripts:
+
+    source <file>
+
+This reads the <file> and executes it as a Tcl script.
+
+
+Quoting
+-------
+
+Tcl offers three methods: backslash, double-quotes, and braces.
+
+Backslashes are a way to remove the special meaning of a metacharacter
+and to reproduce it literally. For example:
+
+    set value \$2.00
+
+The $ is treated literally.
+
+Double-quotes cause nearly everything between them to be be treated in
+the usual way, except that they disable command and word separators
+such as spaces, newlines, tabs, and semicolons. These have no special
+meanings inside double-quotes.
+
+Braces act much like single-quotes in C-type languages. Braces treat
+nearly everything as literal and no substitutions are performed. Braces
+act to defer evaluation of what appears between them, so as to pass the
+quoted string as a literal to a command. This is very useful where
+premature evaluation of variables would cause misleading results. The
+only form of substitution that occurs within braces is \<newline>
+substitution.
+
+
+Variables
+---------
+
+Tcl variables are always stored as strings and are created when
+declared.
+
+Variables are dereferenced using an unquoted $ sign. For example:
+
+    expr {$a+2}
+
+Variable values can be embedded in a string using this construct:
+
+    str${var}ing
+
+Arrays values are typically accessed as $array($key).
+
+System variables are these:
+
+           argv -- command line arguments in a list (indexed from 0).
+          argv0 -- name of the containing file (not to be confused
+                   with argv).
+          argvc -- number of command-line arguments.
+    env(<name>) -- references an environment variable called <name>.
+                   This is an array variable.
+  tcl_precision -- sets the precision of numerical values.
+                   Setting this to 17 guarantees 64-bit precision
+                   for real numbers. (deprecated in 8.6)
+
+Preceding these with a $ will dereference them. Here's an example to
+use inside of a script:
+
+    set arg1 [lindex $argv 0]
+
+Commands:
+
+    set <var> [<val>]; # sets variable of name <var> with an optional
+      <val>. without the <val>, it returns the currently stored <val>,
+      if any.
+
+    set pi 3.14
+    set pres {George Washington}
+
+    unset <var> [...]; # unsets the <var> and removes any
+
+    append <var> <string> [...]; # appends <string> to the value of
+      <var>. in most cases, lappend is preferable.
+
+      set pi 3.14
+      append pi 159
+      3.14159
+
+    incr <var> [<value>]; # increments <var> value. <value> is an
+      integer, 1 by default.
+
+      set ten 10
+      incr ten
+      # ten = 11, probably need to do command evaluation on this to do
+      # something useful.
+
+In all above cases, <var> is the name of a variable, not the
+dereferencing of a variable using $.
+
+To substitute variable values into a string, there is this command:
+
+    subst [-nobackslashes] [-nocommands] [-novariables] <string>;
+      # performs backslash, command, and variable substitution into
+      <string> and returns the result. The options limit the
+      substitutions.
+
+
+Querying Variables
+------------------
+
+The concepts of looping and expressions are discussed later, but
+because of the relation of this topic to variables, this material is
+presented now.
+
+The info command can test for the existence of variables. info exists
+is particularly useful for testing whether environment variables exist
+and for script debugging. Here is an example:
+
+    % info exists env(TERM)
+    1
+
+Notice $env is not used here. Usually it's a good idea to check that an
+env variable is defined before trying to de-reference it. This avoids
+missing variable errors.
+
+Commands:
+
+    info exists <var>; # returns 1 if a variable exists in the current
+      context and 0 otherwise.
+
+    info vars [<pattern>]; # returns a list of all variable names
+      accessible in the current context. the optional <pattern> returns
+      only variables that match the pattern using the rules of the
+      string match command. global variables are always available by
+      default in tclsh.
+
+    info globals [<pattern>]; # returns the a list of all global
+      variable names regardless of accessibility in the local context.
+      global variables are always available by default in tclsh.
+      the optional <pattern> behaves as for vars.
+
+    info locals [<pattern>]; # returns a list of local variable names
+      accessible in the current context. if none are available, an
+      empty string is returned. the optional <pattern> behaves as for
+      vars.
+
+The trace command allows execution of a procedure when a variable is
+accessed. Here is an example:
+
+    trace add variable "color" "write" pvar
+    trace add variable "arr(length)" "write" pvar
+
+    proc pvar {var element action} {
+      if {$element != ""} {
+        set var ${var}($element)
+      }
+      upvar $var x
+      puts "Action: $action $x to $var"
+    }
+
+This code executes proc pvar whenever the scalar variable color or the
+array element arr(length) is written to. Three arguments are passed to
+pvar: the name of the variable, the array element (if there is none,
+this argument is an empty string), and the operation that was performed
+on the variable. The if block is a test for whether the var is an
+array. upvar is needed to get var into the current context. When the
+following commands are executed:
+
+    set color blue;
+    set arr(length) 1;
+
+This is returned:
+
+    Action: write blue to color
+    Action: write 1 to arr(length)
+
+Commands:
+
+    trace add variable <var> <action_list> <proc>; # initiates a trace
+      on variable <var> such that <proc> is called when any of the
+      actions in the <action_list> is performed on <var>. the <var> can
+      be a scalar variable, an array element, or an entire array. if it
+      is a whole array, then <proc> is executed any time any element of
+      the array is acted upon according to the conditions of the
+      command. if <var> does not exist, it is created but not given a
+      value. in that case, it is not accessible to 'info exists'.
+
+      the <action_list> may contain any of these actions:
+
+        read -- <var> is dereferenced.
+
+        write -- <var> is set.
+
+        unset -- <var> is unset when the unset command is used on it,
+          or when <var> is a local variable and its parent proc returns
+          a value, in which case, all local variables are unset.
+
+        array -- <var> is an array variable and the array command acts
+          on it.
+
+      trace passes three arguments to <proc>: the variable name
+      (if it's an array, the key), the array index (if <var> is a
+      scalar, an empty string is passed), and the action that was
+      performed. if an entire array is deleted, the second passed
+      argument is an empty string. the first two arguments are not
+      necessarily the same as what appears in the trace command because
+      upvar may have created the <var>.
+
+      the <proc> executes in the same context as the trace command that
+      calls it, but this is not necessarily the same context as what
+      initiates the trace. the <proc> must use upvar or uplevel to
+      access the <var>.
+
+Additional details are in the Tcl reference documentation for the
+preceding command, as the accessibility of variables being traced is
+intricate.
+
+    trace remove variable <var> <action_list> <proc>;
+      # removes an existing trace on <var>. returns an empty string.
+
+    trace info variable <var>; # returns a nested list, where each
+      list at the second level contains {{<action_list} <proc>} for
+      all traces on <var>. if no traces are set, then the command
+      returns an empty string.
+
+
+Lists
+-----
+
+The simplest form of list is a space-delimited group of strings:
+
+    element1 element2 element3 ...
+
+Often such lists can be passed to commands using braces or double
+quotes to enclose them.
+
+The list command is the best command for creating lists.
+
+    % set a [list a b c]
+    a b c
+
+The lists it creates are always well-formed, even if the argument lists
+are not well-formed. (However, list can return string array elements
+with braces or back-slashes around them, which may not be desirable for
+output to other applications).
+
+    % set var [list \"hello\" \"world\"]
+    {"hello"} {"world"}
+
+In such cases,doing this will remove the braces.
+
+    % set var "\"hello\" \"world\""
+    "hello" "world"
+
+The concat command can be used to concatenate lists together into a
+single list. However, lists formed with concat may or may not be well-
+formed, depending on the entering arguments.
+
+The llength command tells you the length of a list.
+
+Here are some examples:
+
+    % set x [list a b c]
+    a b c
+    % llength $x
+    3
+    % set y [list {d e f}]
+    {d e f}
+    % llength $y
+    1
+    % set z [concat $x $y]
+    a b c {d e f}
+    % llength $z
+    4
+
+The split command returns a list.
+
+    % set w [split /user/danl /]
+    {} user danl
+    % llength $w
+    3
+
+This can be useful for finding elements in a sentence:
+
+    % set string "This sentence has five words."
+    This sentence has five words.
+    % set var [split $string]
+    This sentence has five words.
+    % lindex $var 3
+    five
+
+Commands:
+
+Indices in lists are always 0-based.
+
+Basic list commands.
+
+    list <value> [...]; # creates a well-formed list.
+
+    concat <list> [...]; # concatenates multiple lists.
+
+    lappend <variable name> <value> [...]; # appends each value to the
+      variable as a list element. Do not use $ with the variable name.
+      This command returns a proper list and is more efficient than
+      append.
+
+    lindex <list> <index>; # returns the index-th element of the list.
+
+    llength <list>; # returns the number of elements in the list.
+
+    lsearch [-glob | -exact | -regexp | -sorted] [-nocase]
+      <list> <pattern>;
+      # returns the index of the first element of the list that matches
+      the pattern. -glob matching is the default. -1 indicates fail.
+      -nocase and -exact are incompatible. glob matching is generally
+      slow, especially for big lists. -exact is up to three times
+      faster. -sorted is much faster but requres the list to be sorted.
+      There are many more options than are listed here.
+
+    split <string> <delimiter>; # returns a list of string elements
+      that are separated by the delimiter.
+
+    join <list> <delimiter>; # approximately the inverse of split.
+      returns the named list.
+
+List modification commands. These don't modify the existing list in
+situ, but return a modified version of the specified list.
+
+    linsert <list> <index> <value> [...]; # inserts the values into the
+      list before the index element.
+
+    lreplace <list> <index1> <index2> <value> [...]; # replaces the
+      list elements in the index interval with the specified values.
+
+    lrange <list> <index1> <index2>; # returns the elements of the
+      list from the interval of the index values.
+
+    lsort [-ascii | -dictionary | -integer | -real | -command <function>]
+      [-index <list>] [-indices] [-unique] [-increasing | -decreasing]
+      [-nocase] [-stride <length>] <list>; # returns a sorted list based
+      upon the parameters. default is -ascii -increasing.
+
+The lassign command was introduced in Tcl 8.5:
+
+    lassign <list> [<var_name> ...]; # reads elements from the <list>
+      and assigns them to <var_name> variables in the order that each
+      appears. if the number of elements in the <list> exceeds the
+      number of variables, the elements that are not mapped to a
+      variable are returned. if the number of variables exceeeds the
+      number of elements in the <list>, then the variables that are
+      not mapped to an elements are set to the empty string "".
+
+Creating uniquified lists like this gets quite slow as the list grows:
+
+    set someList {};
+    foreach item $some_big_list {
+      ... find some interesting things in some_big_list ...
+
+      # Keep track of the interesting things in a new list
+      if {[lsearch $someList $someName] < 0} {
+        lappend someList $someName;
+      };
+    };
+
+It's better to use an array for searching and a separate list for
+index order (if needed), or just use a dictionary (the keys are
+ordered). If order doesn't matter, then just create the list and sort
+it with lsort [-unique]. Then do the searching with lsearch -sorted.
+
+
+
+Arrays
+------
+
+Arrays are stored like this:
+
+    set <array_name>(<element_name>) <value>
+    # seems to be a lot like a hash
+
+Multi-dimensional arrays are stored like this:
+
+    set <array_name>(i,j,k[,...]) <value>
+
+Unlike lists, plain arrays have no inherent order. (However,
+dictionary keys are maintained in the order they are entered
+into the dictionary.)
+
+The array command allows querying of array variables. Here is an
+example:
+
+    foreach i [array names myArray] {
+      if {$myArray($i) == ""} {
+        unset myArray($i)
+      }
+    }
+
+This code looks through myArray and unsets any empty elements. This
+type of array search is usually fine, but the additional array commands
+offer more generality and can result in better performance.
+
+Commands:
+
+    array size <array_name>; # returns the number of elements in an
+      array.
+
+    array names <array_name>; # returns the names of keys in an array.
+      The names are not returned in a predictable order.
+
+    array startsearch <array_name>; # initializes a search of the
+      elements in an array. returns an identifier <id> that can be
+      passed to the other array searching commands.
+
+    array nextelement <array_name> <id>; # returns the next element in
+      the search corresponding to <id> of an array. an empty string is
+      returned if the entire array has been searched.
+
+    array anymore <array_name> <id>; # returns a 1 if there are any
+      unsearched elements in the search corresponding to <id> of an
+      array and 0 otherwise.
+
+    array donesearch <array_name> <id>; terminates a search
+      corresponding to <id> of an array. discards the search state and
+      returns an empty string.
+
+For large numbers of elements, searching an array is much faster than
+searching a list of equal size. The same is true of dictionaries
+versus lists. Here is a notional example of an array search:
+
+    set someList {};  # for tracking order
+    set someArray {}; # for searching
+    foreach item $some_big_list {
+      ... find some interesting things in some_big_list ...
+
+      # Keep track of the interesting things in a new list
+      if { ![info exists someArray($someName)] } {
+        # Save the index into someList for someName in someArray
+        set new_index [ llength $someList ];
+        set someArray($someName) $new_index;
+        lappend someList $someName;
+      };
+    };
+
+If order is unimportant, you can skip storing the indices in a list.
+
+
+Dictionaries
+
+Tcl 8.5 introduced the 'dict' command, which creates and manipulates
+dictionaries. This is another term for an associative array, or hash.
+
+Unlike plain arrays, a dict does have an inherent order because the
+keys are maintained in the same order they are entered into a dict.
+
+Here is an example of using a dict to mimic a list:
+
+    set someDict [ dict create ];
+    foreach item $some_big_list {
+      ... find some interesting things in some_big_list ...
+
+      # Keep track of the interesting things in a dict
+      if { ![dict exists $someDict $someName ] } {
+             dict set someDict $someName 0; # 0 is unimportant here
+      };
+    };
+
+    dict for { item nada } $someDict {
+      ... process item ...
+    };
+
+Another example:
+
+    # Make a dictionary to map extensions to descriptions
+    set filetypes [dict create .txt "Text File" .tcl "Tcl File"]
+
+    # Update the dictionary
+    dict set filetypes .tcl "Tcl Script"
+    dict set filetypes .tm  "Tcl Module"
+    dict set filetypes .gif "GIF Image"
+    dict set filetypes .png "PNG Image"
+
+    # Simple read from the dictionary
+    set ext ".tcl"
+    set desc [dict get $filetypes $ext]
+    puts "$ext is for a $desc"
+
+    # Somewhat more complex, with existence test
+    foreach filename [glob *] {
+      set ext [file extension $filename];
+      if {[dict exists $filetypes $ext]} {
+        puts "$filename is a [dict get $filetypes $ext]";
+      };
+    };
+
+As with any associative array, the mapping between a key and its
+associated value is unique. (But values themselves are not.)
+
+If two dictionaries are merged and they have identical keys, the
+last key-value pair that is read from among duplicate keys is used.
+Other pairs are ignored.
+
+Commands:
+
+The general form of the command is 'dict <option> <arg> ...'.
+There is a set of approximately 20 options. Among the more useful are
+these:
+
+  create [<key> <value> ...] -- returns an array variable handle,
+    optionally populating it with <key> <value> pairs.
+
+  exists $<dict_handle> <key> [<key> ...] -- returns a 1 if the <key>
+    exists in the specified array, and 0 otherwise. If more than one
+    <key> is specified, this is handled as nested calls to
+    'dict exists' like this:
+
+    dict exists [dict exists [... [dict exists $arr keyN] ... keyI] ...] keyA
+
+    If after iterating over all the keys, it is determined they all
+    exist, the command returns a 1, and 0 otherwise.
+
+  for {<key_var> <value_var>} $<dict_handle> <script> -- defines a
+    'for' loop that iterates over key-value pairs in the specified
+    array, which are assigned to <key_var> and <value_var> variables
+    in the body of the <script>.
+
+  get $<dict_handle> [<key> ...] -- returns all key-value pairs from
+    the specified array. If one <key> is specified, its corresponding
+    value is returned. If more than one <key> is specified, this is
+    handled as nested calls to 'dict get'. See the 'exists' option for
+    a related description.
+
+  keys $<dict_handle> [<glob_pattern>] -- returns all keys from the
+    specified array. If <glob_pattern> is provided, then only the keys
+    matching the pattern are returned.
+
+  remove $<dict_handle> [<key> ...] -- returns an array variable handle
+    that references a new dictionary array based upon the specified
+    array. If no <key> is provided, the new array is a copy of the
+    input array with a different handle name. If <key> arguments are
+    provided, then the corresponding key-value pairs (if any match) are
+    removed from the input array before creating the output array.
+
+  replace $<dict_handle> [<key> <value> ...] -- returns an array
+    variable handle that references a new dictionary array based upon
+    the specified array. If no <key> <value> pair is provided, the new
+    array is a copy of the input array. If a <key> <value> pair matches
+    no pair in the input array, the specified pair is added to the new
+    array. Otherwise, the <key> <value> pair replaces the pair
+    corresponding to the <key>.
+
+  set $<dict_handle> <key> [<key> ...] <value> -- updates the specified
+    array by adding the specified <key> <value> pair. The <value> may
+    be assigned to more than one <key>.
+
+  size $<dict_handle> -- returns the number of key-value pairs in the
+    specified array. This is a good way to test if an array is empty.
+
+  unset $<dict_handle> <key> [<key> ...] -- updates the specified
+    array by removing the specified <key> and its corresponding value.
+    If more than one <key> is specified, this is handled as nested
+    calls to 'dict unset'. See the 'exists' option for a related
+    description.
+
+  values $<dict_handle> [<glob_pattern>] -- returns all values from the
+    specified array. If <glob_pattern> is provided, then only the
+    values matching the pattern are returned.
+
+
+Strings
+-------
+
+Any character in the ISO 8859-1 character set can be used in a Tcl
+string. Tcl provides no interpretation of characters outside the ASCII
+subset.
+
+The simplest form of pattern matching used in Tcl is glob-style. For
+example:
+
+    % string match str* $var
+
+This would match complete strings like "string", "streak", "street of
+dreams", and so forth. The command returns a 1 for success and a 0 for
+failure. This is typical of most of the string matching commands.
+
+Glob-style matches use these metacharacters:
+
+           * -- zero or more characters.
+           ? -- any 1 character.
+   \[<set>\] -- any of the characters in the set. A hyphen between an
+                appropriate pair of characters indicates a range: [0-9]
+          \x -- matches exactly x. This is an escape sequence, as in C.
+
+Regular expression matches as in grep -E are also possible when using
+the appropriate commands.
+
+Here is an example of regular expression matching:
+
+  % set string [exec who]
+  danl       pts/2        Sep 13 12:57    (134.86.52.87)
+  % regexp {[0-9]{3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}} $string match
+  1
+  % echo $match
+  134.86.52.87
+
+Notice that the regular expression itself is quoted with braces. This
+is almost always the correct thing to do. The command itself returns a
+1 for success, 0 for failure. The matched string can be placed into a
+variable as shown in the example.
+
+Here is an example of regular expression substitution:
+
+    % set string "to be or not to be"
+    to be or not to be
+    % regsub {to be} $string {yes,}
+    yes, or not to be
+    % regsub -all {to be} $string {yes,}
+    yes, or not yes,
+    % regsub -all {to be} $string {yes,} newstring
+    2
+    # the number of substitutions
+    % echo $newstring
+    yes, or not yes,
+
+Commands:
+
+Indices in strings are always 0-based.
+
+The following commands are demonstrated by simple examples.
+
+    % set string1 "this is the first string"
+    this is the first string
+
+    % string length $string1
+    24
+
+    % string first "is" $string1
+    2
+
+    % string last "is" $string1
+    5
+
+    % string index $string1 10
+    e
+
+    % string range $string1 1 9
+    his is th
+
+    % string match "str*" $string1
+    0
+    % string match *str* $string1
+    1
+    # string match attempts to match all of $string1, not just elements
+    # of it.
+
+    % string toupper $string1
+    THIS IS THE FIRST STRING
+
+    % string tolower "THIS IS THE FIRST STRING"
+    this is the first string
+
+    % string trim $string1 {thing}
+    s is the first str
+    # if any of the characters specified as the trim list are found,
+    # they are removed from both ends of the string.
+    # if no trim list is specified, then whitespace characters are
+    # removed. same holds true for other members of this command
+    # family.
+
+    % string trimleft $string1 {thing}
+    s is the first string
+
+    % string trimright $string1 {thing}
+    this is the first str
+
+    % set string2 "this is the next string"
+    this is the next string
+    % string compare $string1 $string2
+    -1
+    # returns -1 if the first string is lexicographically less than the
+	# second string.
+    # 0 if equal and 1 if greater than.
+
+Regular expression commands:
+
+  regexp [-indices] [-nocase] <expression> <string> [<match_variable>]\
+         [<sub_expression_match_var> ...]; # returns a 1 if the
+	 <expression> matches any part of the <string>, and 0
+         otherwise. the <expression> should nearly always be quoted by
+         braces. the optional variable names after the <string> are
+         filled with the matched string and any matched sub-strings
+         from sub-expressions enclosed in parentheses in the
+         <expression>. the -indices option saves the index positions of
+         the first and last positions of the matches into the optional
+         variables. the -nocase option makes the match
+         case-insensitive.
+
+  regsub [-all] [-nocase] <expression> <string> <substitution_string> \
+         <mod_string_var>; # returns a 1 for a <substitution_string>
+	 substitution for a match of the <expression> within the
+         <string>. the modified string is stored in the
+         <mod_string_var>. 0 indicates failure to match. by default,
+         only the first match in the <string> is substituted. the -all
+         option causes all matches to be substituted. it also causes
+         the command to return the number of substitutions. the -nocase
+         option behaves as for regexp. if a & or \0 appears in the
+         <substitution_string>, then such characters are replaced by
+         the string matched by the <expression>. if \n is used, then
+         the nth sub-expression match replaces the \n.
+
+Format commands:
+
+This is a nice reference: http://www.cppreference.com/wiki/c/io/printf
+
+    format <formatted_string> [<value>] [...]; # returns a string of
+      the specified format.  the <formatted_string> contains "%"
+      specifiers that define value types and formats to be substituted,
+      such as %c for character, %f for floating point number, and so
+      forth. the <value> parameters define the values to be used in the
+      formatted string where the format specifiers appear. the ANSI C
+      sprintf function defines the allowed specifiers. this is similar
+      to what printf allows in the UNIX shell.
+
+    scan <string> <format> <matched_variable> [...]; # parses the
+      <string> according to the <format> and saves the values that
+      match % specifiers in the <matched_variable> arguments. the ANSI
+      C sprintf function defines the allowed specifiers. the command
+      returns the number of format conversions.
+
+
+Expressions
+-----------
+
+Expressions combine numerical and string values with operators to
+produce new values.
+
+    expr {$pi*$r*$r};
+
+    if {$a < $b} { ...
+
+Numeric operands of the forms 6.02e+23 and 1E3 are allowed.
+
+String comparison is only supported for the comparison operators
+described below. When performing string comparisons, you need to quote
+the strings:
+
+    if {$x == "True"} { ...
+
+    if {($x == 1) && ($y == 0)} { ...
+
+In Tcl, 1 is true and 0 is false.
+
+Common operators:
+
+Grouping:     ( )
+Arithmetic:   ** * / % + -  (- is also unary, / truncates the output to
+              integer if both inputs are integers)
+Comparison:   < > <= >= == != (these work for strings)
+Logical:      ~ (bit complement) ! (unary not) && ||
+if-then-else: a?b:c, where a is an expression and b (a is true) or
+              c (a is false) are return values
+
+The math functions that are available in C are available in Tcl.
+In Tcl 8.5, the '**' and n-input 'max' and 'min' functions were added.
+'**' may be used as a substitute for 'pow'.
+
+Command:
+
+    expr <arg> <arg> [...]; concatenates the <arg> parameters and
+      evaluates them as an expression. <arg> can be a string, variable,
+      operator, command, and so on.
+
+      Although not required, the expression should always be enclosed
+      in braces as this results in faster execution.
+
+
+Flow Control
+------------
+
+It is almost always a good idea to use braces in flow control blocks.
+In some cases, double-quotes may be needed.
+
+Conditional block:
+
+    if { <condition> } {
+      script ...
+    } elseif { <condition> } {
+      script ...
+    } else {
+      script ...
+    }
+
+The <condition> can take the form of an expression, described
+previously. The elseif and else blocks are optional.
+
+A useful Tcl 8.5 idiom for detecting if a string is in a list
+(or not) is this:
+
+  if {$a in $list} {...
+
+and this:
+
+  if {$a ni $list} {...
+
+These are simpler than using the 'lsearch' command.
+
+If there are many conditions to check, the switch command can be more
+useful:
+
+    switch [-glob | -exact | -regex] [-nocase] $<var> {
+      <val1> {script}
+      <val2> {script}
+      <val3> -
+      <val4> {script}
+      default {script}
+    }
+
+The $<var> is a variable call. The <valN> arguments are values to test.
+Whichever <valN> matches the $<var> causes the corresponding script to
+be executed.
+
+The "-" operator causes that <valN> to use the script of <valN+1>. The
+"default" values matches any value that the rest of the <valN> values
+do not have.
+
+By default, switch uses -glob matching. The other matching options are
+self-explanatory (although -nocase is incompatible with -exact). The
+<valN> arguments need to use the specified method of matching.
+
+Loops:
+
+    while { <expression> } {
+      script ...
+    }
+
+So long as the <expression> is not 0, the loop continues.
+
+The for loop allows greater control over the looping process
+
+    for { <init_script> } { <expression> } { <re_init_script> } {
+      script ...
+    }
+
+as in:
+
+    for {set i 0} {$i < $sortListLength} {incr i} {
+      puts "---[lindex $sortList $i]";
+    }
+
+The <init_script> initializes a variable, the <expression> tests the
+variable, if the <expression> is not 0, the <re_init_script> re-
+initializes the variable to a new value and the loop continues.
+
+The foreach loop iterates over a list:
+
+    foreach <var> <list> {
+      script ...
+    }
+
+The <var> is a variable name. The <list> is a Tcl list to iterate over.
+The list is iterated over from left to right.
+
+The "break" command can be used in a loop to break out of the loop
+entirely. Similarly, the "continue" command can be used in a loop to
+skip to the next iteration. For example:
+
+    foreach i {3 5 7 8 9} {
+      if { [expr {$i%2] == 0} } {puts "Oops, $i is even."; break}
+      puts "$i is odd"
+    }
+
+
+Procedures
+----------
+
+Procedures are the Tcl version of subroutines, and they behave just
+like a Tcl command. Here is an example:
+
+    proc power {x y} {expr {pow($x,$y)}}
+    power 2 3
+    8.0
+
+The value returned by the procedure is that of the final command
+executed in the body of the procedure.
+
+Commands:
+
+    proc <name> <arg_list> <body>; # specifies a procedure of the
+      given <name> with the optional <arg_list> being input arguments.
+      the <body> is what gets executed. typically, the <arg_list> and
+      <body> are in braces. the <arg_list> may be empty, in which case
+      there are no local variables in the proc that are passed in from
+      the calling environment. the <arg_list> may be a list of lists,
+      such as this: {{<arg1> {<arg2> <default2>}}. in this case, <arg1>
+      is the name of a local variable and it has no default. <arg2> is
+      the name of a local variable with a default value of <default2>.
+      the proc may be called with a single passed-in parameter, which
+      would set the value of <arg1>, while <arg2> would take on the
+      value of <default2>. arguments with defaults must be the final
+      ones in the <arg_list>, and the arguments from the calling
+      environment must follow this convention as well. the <arg_list>
+      may contain the string 'args' as the only or final element in the
+      list. this specifies a variable number of arguments may be
+      passed in from the calling environment. such arguments are
+      usually handled by some form of loop in the proc.
+
+    return [<option> ...] [<value>]; # exits a proc and returns the
+      optional <value>. by default, this returns the empty string. the
+      allowed <option> values are -code, -errorcode, and -errorinfo,
+      which are discussed later under Error Management.
+
+    global <var_name> [<var_name> ...]; # specifies that the <var_name>
+      is a variable name from the global scope. by default, variables
+      within a proc are local in scope. this command is called from
+      within a proc and remains in effect while the proc is executed.
+
+    upvar [<level>] <out_var> <local_var> [{<call_var> <local_var>}...]
+      # specifies a local variable name <local_var> for accessing the
+      value of a variable <out_var> from outside the local scope. the
+      <level> specifies the level of the calling environment stack
+      from which to access the <out_var>. the <level> defaults to
+      1, which means to reference the calling environment. a <level> of
+      '#0' means reference the global environment.
+
+      % proc test {} {
+      puts $var
+      }
+      % set var 1
+      1
+      % test
+      can't read "var": no such variable
+      %  proc test {} {
+      upvar var var
+      puts $var
+      }
+      % test
+      1
+
+      upvar was frequently used to process arrays because there was
+      no way to pass in an entire array's contents through a variable
+      reference. But in Tcl 8.5, the introduction of the 'dict'
+      command overcame this limitation.
+
+      Example of the historical usage:
+
+        proc print_array name {
+          upvar $name array; # access the passed-in array directly
+          foreach element [lsort [array names array]] {
+            puts "$element = $array($element)"
+          }
+        }
+
+        set arr(one) 1
+        set arr(two) 2
+        print_array arr
+        one = 1
+        two = 2
+
+      An array created with 'dict' alleviates this issue.
+
+    uplevel [<level>] <arg> [<arg> ...]; # concatenates the <arg>
+      values with space delimiters and then executes the result as a
+      Tcl script in the variable context of the of the <level> of the
+      calling environment stack. the <level> defaults to 1, which means
+      to reference the calling environment.
+
+      uplevel behaves like eval, except that uplevel can access scopes
+      outside of the local one.
+
+    info level [<number>]; # returns the current level in the call
+      stack. 0 means top level. if the optional <number> is specified,
+      returns a list containing the name of the proc in a call and the
+      associated arguments at the <number> level of the stack.
+
+    info args <proc>; # returns a list of the arguments of the <proc>
+      in the order they are defined.
+
+    info body <proc>; # returns the body of the <proc>.
+
+    info default <proc> <arg> <var>; # tests if the <arg> of the
+      <proc> has a default value. if yes, returns 1 and places the
+      value in <var>. if not, returns 0.
+
+    info procs [<pattern>]; # returns a list of all procs currently
+      defined. if <pattern> is used, then procs that match the
+      <pattern> according to string match rules are returned.
+
+File I/O
+--------
+
+Tcl uses the customary UNIX syntax for pathnames. It also uses ~ in the
+usual way to access home directories.
+
+File system navigation is provided by the 'cd' and 'pwd' commands.
+These work in the same way as in UNIX.
+
+This demonstrates basic reading of a file:
+
+    set filename /path/from/root
+    set file [open $filename r]
+    set i 0
+    while {[gets $file line] >= 0} {
+      set i [expr {$i+1}]
+      puts "$i: $line"
+    }
+    close $file
+
+Commands:
+
+    open <name> [<access>]; # opens a file specified by <name>.
+      these are the <access> types:
+
+      r  -- read only. the file must exist. (default)
+      r+ -- read and write. the file must exist.
+      w  -- write only. truncate the file if it exists, otherwise
+            create it.
+      w+ -- same as w but adds reading.
+      a  -- append to the file if it exists, otherwise create it.
+      a+ -- same as a but adds reading. Doesn't read existing data.
+
+    The open command returns a file identifier that cannot be predicted.
+    Usually this is stored in a variable.
+
+Open files should be closed with the close command:
+
+    close $<fileID>; # closes an open file.
+
+The gets and puts commands are used for line-based I/O:
+
+    gets $<fileID> [<var>]; # reads the next line of the <fileID> and
+      discards the terminating newline. if <var> is specified, the line
+      is placed into that variable and a count of characters is
+      returned. -1 is returned for EOF. if <var> is not specified, the
+      line is returned or an empty string for EOF.
+
+    puts [-nonewline] [$<fileID>] "<string>"; # outputs the <string>
+      to the <fileID>. by default, the <fileID> is 'stdout', which is a
+      file channel that is always available (stdin and stderr are also
+      available). a newline is appended to the output by default, which
+      can be overridden by -nonewline.
+
+    flush $<fileID>; # forces any buffered output to be written
+      immediately to the <fileID>. this command should be used if you
+      want to ensure that information passed to puts is immediately
+      available in any output file. otherwise, output can sit in a
+      buffer until dumped to the output file.
+
+File access through globbing is available as follows:
+
+    glob {{dir1,dir2}/*.[cd]*}
+    --> dir1/file1.c dir1/file2.csh dir2/file3.db
+
+    glob */
+    --> all subdirectories under the current location
+
+    glob [-nocomplain] [--] <pattern> [<pattern> ...]; # access files
+      through globbing such as for 'string match'. The <pattern> uses
+      ?, *, [], {}, and \. If the match fails, an error is returned by
+      default, which can be defeated by the -nocomplain option.
+
+File information is determined by the file command. For this command,
+'true' is always returned by 1 and false by 0. Time is returned in
+seconds, measured from current epoch.
+
+    file <option> <name> [<arg> ...]; # provides information on the
+      file specified by <name>. The information is dependent upon the
+      <option>. The <arg> is dependent upon the <option>. Options are:
+
+          atime -- last access time.
+        dirname -- returns everything until the last /.
+     executable -- returns 1 if executable and 0 otherwise.
+         exists -- returns 1 if present and 0 otherwise.
+      extension -- returns string after final period in <name>.
+    isdirectory -- returns 1 if the file is a directory and 0
+                   otherwise.
+         isfile -- returns 1 if the file is a plain file and 0
+                   otherwise.
+          mtime -- last modify time.
+          owned -- file is owned by current user.
+       readable -- returns 1 if readable and 0 otherwise.
+       readlink -- returns the file pointed to by a symbolic link.
+       rootname -- returns everything before the final '.' in <name>.
+           size -- bytes.
+           tail -- returns everything after the last '/'.
+           type -- literally returns: file, directory, link, socket,
+                   fifo, characterSpecial, blockSpecial
+       writable -- returns 1 if writable and 0 otherwise.
+
+Two additional forms of this command are these:
+
+    file stat <name> <array>; # returns statistics of the file
+      specified by <name> and stores them in the <array>. If the <name>
+      is a link, the statistics refer to the link target.
+
+    file lstat <name> <array>; # identical to stat, except that if the
+      <name> is a link, the statistics refer to the link itself, not
+      the target.
+
+Commands that pertain to navigation within a file include these:
+
+    eof <fileID>; # returns 1 if an end-of-file is encountered in the
+      file referenced by the specified file identifier and 0 otherwise.
+
+    read [-nonewline] <fileID>; # returns all the remaining bytes from
+      the specified file identifier. if -nonewline is specified, any
+      final newline is dropped.
+
+    read <fileID> <numBytes>; # returns the next <numBytes> bytes from
+      the file corresponding to the specified file identifier. if fewer
+      then <numBytes> bytes remain, everything to the end of the file
+      is returned.
+
+    seek <fileID> <offset> [start | current | end]; # positions the
+      location in the file corresponding to the file identifier an
+      <offset> number of bytes from the specified location. by default,
+      the location is 'start', which is the start of the file.
+      the <offset> can be negative if 'current' or 'end' is used, in
+      which case the offset is toward the beginning of the file.
+      returns an empty string.
+
+    tell <fileID>; # returns the current access position in the file
+      specified by <fileID> in bytes.
+
+
+Processes
+---------
+
+The exec command creates one or more sub-processes and waits until they
+complete before returning. The exec command can be used to access
+commands from the primary shell, not just tclsh. For example:
+
+    exec rm file1
+
+    exec [-keepnewline] [--] <arg> [<arg> ...]; # executes the command
+      pipeline specified by the <arg> parameters. It returns the
+      pipeline's standard output. The trailing newline is truncated
+      unless -keepnewline is specified. The | pipeline is supported. If
+      the final <arg> is &, the pipeline is executed in the background.
+      The return value is a list of PIDs. I/O redirection support is as
+      follows:
+
+       > <file> redirects stdout to the <file>
+      >> <file> appends stdout to the <file>
+      2> <file> redirects stderr to the <file>
+      >& <file> redirects both stdout and stderr to the <file>
+      >@ <fileID> redirects stdout to the <fileID>, which is returned
+         by 'open'.
+       < <file> causes stdin to be taken from <file>.
+      << <value> passes an immediate value to the subprocess as stdin.
+      <@ <fileID> causes stdin to be taken from the <fileID>, which is
+         returned from 'open'.
+
+Because many UNIX programs are careless about return values, it is best
+to invoke exec inside a 'catch' command.
+
+exec is risky because it can execute unintended commands passed to it.
+Tcl 8.6 introduced the {*} operator, which performs argument expansion.
+You can then do this:
+
+    exec {*}$<cmd> ...
+
+and you don't need an extra round of parsing with eval. This is both
+quicker and safer.
+
+File globbing needs to be handled with the eval and glob commands, like
+this:
+
+    eval exec rm [glob *.bak]
+
+This can also be done this way:
+
+    exec sh -c rm *.bak
+
+Certain shell commands like awk, grep, and sed frequently use express-
+ions enclosed in single quotes. This doesn't work in Tcl, so the quotes
+need to be replaced by brackets. If you want the return string from the
+shell command to be echoed in Tcl, then you need to wrap everything in
+a puts, as here:
+
+  puts [exec awk {{
+             <script>
+             }} file]
+
+Notice the double brackets. Ordinarily, the outermost set would be
+single quotes.
+
+I/O interaction with a command can be executed this way:
+
+    set f [open |program r+]
+
+The gets and puts commands can be used with $f to read from and write
+to 'program' through the pipeline. Because output is buffered, the
+'flush' command is often handy in this context. Closing the open
+pipeline causes all buffered output to be written to the program.
+
+You can do the following to get the process ID of an open process as
+shown in the preceding example:
+
+    pid $f
+
+The array variable 'env' is used to access environment variables. For
+example:
+
+    puts $env(PATH)
+
+To exit a process, use the 'exit [N]' command. It returns 0 by default.
+
+
+Error Management
+----------------
+
+Error stack traces are stored in a global variable called errorInfo.
+
+The errorCode global variable stores additional pieces of information for
+certain commands.
+
+The typical command for trapping errors and exceptions is catch. Here
+is a common usage:
+
+    if { [ catch { set f [ open $filename r ] } errorMessage ] } {
+      puts stderr "Could not open $filename: $errorMessage"
+    }
+
+The error is trapped in the errorMessage variable. It may be the
+program can recover from this, but the error is still output. The catch
+command is used to trap the error but it allows the script to continue.
+If recovery from the exception is possible, this is a good thing.
+The basic syntax of catch is:
+
+    catch <command> [<msg>]; # returns an error or exception value when
+      such is issued by the <command>.  Optionally stores any error
+      message in the <msg> variable. The following values are returned:
+
+      0: no exception
+      1: Error. Return string describes the problem. Applies to catch.
+      2: return command was invoked. String gives return value for proc
+         or source command. Applies to catch, source, and procs.
+      3: break command was invoked. String is empty. Applies to catch,
+         for, foreach, while, and procs.
+      4: continue command was invoked. String is empty. Applies to
+         catch, for, foreach, while, and procs.
+      other: defined by the application. Applies to catch.
+
+The return command also provides for exception handling:
+
+    return {[<string>] | [-code <code>] | [-errorinfo <info>] |
+           [-errorcode <error>]}; # causes the current procedure to
+      return an exceptional condition to the calling environment. By
+      default, an empty string is returned. The <string> is a return
+      value. The allowed <code> values are:
+
+      break
+      continue
+      error
+      ok
+      return
+      integer
+
+      These specify return conditions. The <info> parameter specifies
+      a starting value for the global errorInfo variable. The <error>
+      parameter specifies the value of the errorCode global variable.
+
+Here is an example of error return code usage:
+
+    proc do {varName first last body} {
+      global errorInfo errorCode
+      upvar $varName v
+      for {set v $first} {$v <= $last} {incr v} {
+        set code [catch {uplevel $body} string]
+        if {$code == 1} {
+          return -code error -errorinfo $errorInfo \
+             -errorcode $errorCode $string
+        } elseif {$code == 2} {
+            return -code return $string
+        } elseif {$code == 3} {
+            return
+        } elseif {$code > 4} {
+            return -code $code $string
+        }
+      }
+    }
+
+varName is the name of a variable. varName gets its values from the
+calling environment through the upvar command. The 'do' proc sets
+varName to the consecutive integer values 'first' and 'last'. Then 'do'
+executes the 'body' argument once for each setting.
+
+The uplevel command accesses $body from the calling environment and
+treats it as a Tcl script. The catch command traps any exceptions from
+that script and saves them in the 'string' variable. The 'code'
+variable traps the type of exception as a numeric code. Based upon that
+code, the 'if' block handles the various conditions.
+
+If the code is 0 or 4 (no exception or 'continue', respectively), the
+proc goes on to the next iteration. If the code is 1 or 2 (error or
+return), the proc returns the exception to the calling environment,
+along with the variable values. If the code is 3 (break), the proc
+returns control to the calling environment normally. If any other code
+is encountered, the exception is returned to the calling environment.
+
+An example call might be this:
+
+    set sines {}
+    do angle 30 45 {
+      lappend sines [expr {sin($angle*3.14159/180)}]
+    }
+    puts [regsub -all { } [split $sines] {
+}] ; # formatting here is deliberate to get the newline.
+
+
+Command Environment
+-------------------
+
+Commands:
+
+    info commands [<pattern>]; # returns a list of all commands defined
+      for the current interpreter. this includes built-in commands,
+      application defined commands, and procs. if the <pattern> is
+      provided, the names of commands are returned according to the
+      string match command's criteria.
+
+    info cmdcount; # returns the number of commands executed in the
+      current interpreter.
+
+    info library; # returns the pathname of the Tcl library in which
+      standard Tcl commands for the current interpreter reside.
+
+    info script; # when a Tcl file is currently being evaluated,
+      returns the name of the file. if scripts are nested, the name of
+      the innermost one is returned.
+
+    info tclversion; # returns the version of Tcl.
+
+    rename <old> <new>; # renames the <old> command to <new>. if <new>
+      is empty, <old> is no longer accessible. returns an empty string.
+      in general, renaming built-in commands is a bad idea. one
+      possible exception in the exit command, where having a more
+      elaborate clean-up is desired upon exiting, and the built-in exit
+      command (renamed) is used at the very end of the food chain.
+
+    time <script> [<count>]; executes <script> <count> times. <count>
+      defaults to 1. returns the average elapsed time of each execution
+      in us. the <script> is a Tcl command script. for performance
+      tuning, it is best to adjust <count> until the total runtime is
+      several seconds.
+
+    unknown <cmd> [<arg> [...]]; # if a command is unknown to the
+      interpreter, the <cmd> is executed with optional <arg> parameters
+      passed to <cmd>. the Tcl system has a default for this that
+      should generally not be overidden.
+
+      a potentially useful example:
+
+      proc unknown {name args} {
+        set cmds [info commands $name*]
+        if {[llength $cmds] != 1} {
+          return "ERROR: unknown command \"$name\""
+        }
+        uplevel $cmds $args
+      }
+
+      if the name is an unambiguous abbreviation for another command
+      name, the appreviation is made available through uplevel.
+      otherwise, an error message is returned. actually, more formal
+      error management is probably preferable, but this gets across the
+      basic idea.
+
+
+Command History
+---------------
+
+Tcl has a command history mechanism similar to csh. This is most often
+used for interactive processes. Here are the main commands:
+
+    history; # returns a human readable list of commands, with
+      sequential numbering.
+
+    history keep <count>; # specifies the number of events to be stored
+      in the history buffer. default is 20.
+
+    history nextid; # returns the next number to be used in the event
+      list. this command is most frequently used in an interactive
+      script to store the event number of a command the user is about
+      to execute for later use.
+
+History commands process events in much the same way as csh:
+
+  positive integer: refers to the specific event in the history queue.
+  negative integer: refers to the an event relative to the current
+    event.
+  string: refers to the most recent event that matches the string,
+    according to how 'string match' would process the string.
+
+Here are some common commands that use events:
+
+    history redo [<event>]; # executes the command associated with the
+      <event>. the <event> default is -1. the shortcut for the default
+      is "!!". the shortcut for a specific event is "!<event>".
+
+    history substitute <replace> <new> [<event>]; # replaces the
+      <replace> string with the <new> string in the specified <event>
+      (-1 by default)> and executes that event. the shortcut is
+      "^<replace>^<new>".
+
+
