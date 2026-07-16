@@ -101,6 +101,9 @@ Evaluation command:
 Concatenates all the &lt;arg> entries and then evaluates them as a Tcl
 script. A script must be quoted when it spans lines.
 
+  N.B. In modern Tcl, use of eval is nearly always an indicator
+       you are doing something wrong. Use {*} instead. See exec.
+
 eval induces an additional round of parsing, which allows for variable
 substitution:
 
@@ -128,7 +131,7 @@ explicit form of expression evaluation is this:
 
     set b [expr {$a+1}]
     # b is 2
-	
+
 The eval command is used to create commands:
 
     set cmd &quot;set b [expr $a+1]&quot;;
@@ -678,66 +681,67 @@ The general form of the command is 'dict &lt;option> &lt;arg> ...'.
 There is a set of approximately 20 options. Among the more useful are
 these:
 
-  create [&lt;key> &lt;value> ...] -- returns an array variable handle,
-    optionally populating it with &lt;key> &lt;value> pairs.
+    create [&lt;key> &lt;value> ...] -- returns an array variable 
+      handle, optionally populating it with &lt;key> &lt;value> pairs.
 
-  exists $&lt;dict_handle> &lt;key> [&lt;key> ...] -- returns a 1 if the &lt;key>
-    exists in the specified array, and 0 otherwise. If more than one
-    &lt;key> is specified, this is handled as nested calls to
-    'dict exists' like this:
+    exists $&lt;dict_handle> &lt;key> [&lt;key> ...] -- returns a 1 if 
+      the &lt;key> exists in the specified array, and 0 otherwise. 
+      If more than one &lt;key> is specified, this is handled as nested 
+      calls to 'dict exists' like this:
 
-    dict exists [dict exists [... [dict exists $arr keyN] ... keyI] ...] keyA
+      dict exists [dict exists [... [dict exists $arr keyN] ... keyI] ...] keyA
 
-    If after iterating over all the keys, it is determined they all
-    exist, the command returns a 1, and 0 otherwise.
+      If after iterating over all the keys, it is determined they all
+      exist, the command returns a 1, and 0 otherwise.
 
-  for {&lt;key_var> &lt;value_var>} $&lt;dict_handle> &lt;script> --
-    defines a 'for' loop that iterates over key-value pairs in the
-    specified array, which are assigned to &lt;key_var> and
-    &lt;value_var> variables in the body of the &lt;script>.
+    for {&lt;key_var> &lt;value_var>} $&lt;dict_handle> &lt;script> --
+      defines a 'for' loop that iterates over key-value pairs in the
+      specified array, which are assigned to &lt;key_var> and
+      &lt;value_var> variables in the body of the &lt;script>.
 
-  get $&lt;dict_handle> [&lt;key> ...] -- returns all key-value pairs
-    from the specified array. If one &lt;key> is specified, its
-    corresponding value is returned. If more than one &lt;key> is
-    specified, this is handled as nested calls to 'dict get'. See the
-    'exists' option for a related description.
+    get $&lt;dict_handle> [&lt;key> ...] -- returns all key-value pairs
+      from the specified array. If one &lt;key> is specified, its
+      corresponding value is returned. If more than one &lt;key> is
+      specified, this is handled as nested calls to 'dict get'. See the
+      'exists' option for a related description.
 
-  keys $&lt;dict_handle> [&lt;glob_pattern>] -- returns all keys from the
-    specified array. If &lt;glob_pattern> is provided, then only the keys
-    matching the pattern are returned.
+    keys $&lt;dict_handle> [&lt;glob_pattern>] -- returns all keys from 
+      the specified array. If &lt;glob_pattern> is provided, then only 
+      the keys matching the pattern are returned.
 
-  remove $&lt;dict_handle> [&lt;key> ...] -- returns an array variable
-    handle that references a new dictionary array based upon the
-    specified array. If no &lt;key> is provided, the new array is a
-    copy of the input array with a different handle name. If &lt;key>
-    arguments are provided, then the corresponding key-value pairs (if
-    any match) are removed from the input array before creating the
-    output array.
+    remove $&lt;dict_handle> [&lt;key> ...] -- returns an array variable
+      handle that references a new dictionary array based upon the
+      specified array. If no &lt;key> is provided, the new array is a
+      copy of the input array with a different handle name. If &lt;key>
+      arguments are provided, then the corresponding key-value pairs (if
+      any match) are removed from the input array before creating the
+      output array.
 
-  replace $&lt;dict_handle> [&lt;key> &lt;value> ...] -- returns an
-    array variable handle that references a new dictionary array based
-    upon the specified array. If no &lt;key> &lt;value> pair is
-    provided, the new array is a copy of the input array. If a &lt;key>
-    &lt;value> pair matches no pair in the input array, the specified
-    pair is added to the new array. Otherwise, the &lt;key> &lt;value>
-    pair replaces the pair corresponding to the &lt;key>.
+    replace $&lt;dict_handle> [&lt;key> &lt;value> ...] -- returns an
+      array variable handle that references a new dictionary array based
+      upon the specified array. If no &lt;key> &lt;value> pair is
+      provided, the new array is a copy of the input array. If a &lt;key>
+      &lt;value> pair matches no pair in the input array, the specified
+      pair is added to the new array. Otherwise, the &lt;key> &lt;value>
+      pair replaces the pair corresponding to the &lt;key>.
 
-  set $&lt;dict_handle> &lt;key> [&lt;key> ...] &lt;value> -- updates the specified
-    array by adding the specified &lt;key> &lt;value> pair. The &lt;value> may
-    be assigned to more than one &lt;key>.
+    set $&lt;dict_handle> &lt;key> [&lt;key> ...] &lt;value> -- updates 
+      the specified array by adding the specified &lt;key> &lt;value> 
+      pair. The &lt;value> may be assigned to more than one &lt;key>.
 
-  size $&lt;dict_handle> -- returns the number of key-value pairs in the
-    specified array. This is a good way to test if an array is empty.
+    size $&lt;dict_handle> -- returns the number of key-value pairs in 
+      the specified array. This is a good way to test if an array is 
+      empty.
 
-  unset $&lt;dict_handle> &lt;key> [&lt;key> ...] -- updates the specified
-    array by removing the specified &lt;key> and its corresponding value.
-    If more than one &lt;key> is specified, this is handled as nested
-    calls to 'dict unset'. See the 'exists' option for a related
-    description.
+    unset $&lt;dict_handle> &lt;key> [&lt;key> ...] -- updates the 
+      specified array by removing the specified &lt;key> and its 
+      corresponding value. If more than one &lt;key> is specified, this 
+      is handled as nested calls to 'dict unset'. See the 'exists' 
+      option for a related description.
 
-  values $&lt;dict_handle> [&lt;glob_pattern>] -- returns all values from the
-    specified array. If &lt;glob_pattern> is provided, then only the values
-    matching the pattern are returned.
+    values $&lt;dict_handle> [&lt;glob_pattern>] -- returns all values 
+      from the specified array. If &lt;glob_pattern> is provided, then 
+      only the values matching the pattern are returned.
 </pre>
 <p style="font-family: monospace"><a href="#Contents">Contents</a></p>
 <a name="Strings"></a>
@@ -1341,36 +1345,38 @@ commands from the primary shell, not just tclsh. For example:
       background. The return value is a list of PIDs. I/O redirection
       support is as follows:
 
-       > &lt;file> redirects stdout to the &lt;file>
-      >> &lt;file> appends stdout to the &lt;file>
-      2> &lt;file> redirects stderr to the &lt;file>
-      >& &lt;file> redirects both stdout and stderr to the &lt;file>
-      >@ &lt;fileID> redirects stdout to the &lt;fileID>, which is
-           returned by 'open'.
-      &lt; &lt;file> causes stdin to be taken from &lt;file>.
-      &lt;&lt; &lt;value> passes an immediate value to the subprocess as
-                          stdin.
-      &lt;@ &lt;fileID> causes stdin to be taken from the &lt;fileID>,
-                        which is returned from 'open'.
+       > &lt;file>   redirects stdout to the &lt;file>
+      >> &lt;file>   appends stdout to the &lt;file>
+      2> &lt;file>   redirects stderr to the &lt;file>
+      >& &lt;file>   redirects both stdout and stderr to the &lt;file>
+      >@ &lt;fileID> redirects stdout to the &lt;fileID>, which is returned
+                  by 'open'.
+       &lt; &lt;file>   causes stdin to be taken from &lt;file>.
+      &lt;&lt; &lt;value>  passes an immediate value (such as a string) to the 
+                  subprocess as stdin.
+      &lt;@ &lt;fileID> causes stdin to be taken from the &lt;fileID>, which is
+                  returned from 'open'.
 
 Because many UNIX programs are careless about return values, it is best
 to invoke exec inside a 'catch' command.
 
-exec is risky because it can execute unintended commands passed to it.
+exec can be risky because it can execute unintended commands passed to
+it, expecially when used with eval.
+
 Tcl 8.6 introduced the {*} operator, which performs argument expansion.
 You can then do this:
 
+    set &lt;cmd> "command arg ..."
     exec {*}$&lt;cmd> ...
 
 and you don't need an extra round of parsing with eval. This is both
 quicker and safer.
 
-File globbing needs to be handled with the eval and glob commands, like
-this:
+File globbing should be handled like this:
 
-    eval exec rm [glob *.bak]
+    exec {*}rm [glob *.bak]
 
-This can also be done this way:
+This can also be done this way in Linux:
 
     exec sh -c rm *.bak
 
@@ -1387,14 +1393,15 @@ a puts, as here:
 Notice the double brackets. Ordinarily, the outermost set would be
 single quotes.
 
-I/O interaction with a command can be executed this way:
+I/O interaction with a command (not a file) can be executed this way:
 
-    set f [open |program r+]
+    set f [open |command r+]
 
-The gets and puts commands can be used with $f to read from and write to
-'program' through the pipeline. Because output is buffered, the 'flush'
-command is often handy in this context. Closing the open pipeline causes
-all buffered output to be written to the program.
+The gets and puts commands can be used with $f to read from and write
+to 'command' through the pipeline. Additional pipes can be added to
+the pipeline as needed. Because output is buffered, the 'flush' 
+command is often handy in this context. Closing the open pipeline 
+causes all buffered output to be written to the program.
 
 You can do the following to get the process ID of an open process as
 shown in the preceding example:
@@ -1418,44 +1425,58 @@ Error Management
 
 Error stack traces are stored in a global variable called errorInfo.
 
-The errorCode global variable stores additional pieces of information
-for certain commands.
+The errorCode global variable stores additional pieces of information for
+certain commands. It returns built-in error indicators by default. These
+indicators can be used to make decisions in the code once you are aware
+of what they are.
 
-The typical command for trapping errors and exceptions is catch. Here is
-a common usage:
+The typical command for trapping errors and exceptions is catch. Here
+is a common usage:
 
-    if { [ catch { set f [ open $filename r ] } errorMessage ] } {
-      puts stderr &quot;Could not open $filename: $errorMessage&quot;
+    if { [ catch { set f [ open $filename r ] } msg ] } {
+      puts stderr "Could not open $filename: $msg"
     }
 
-The error is trapped in the errorMessage variable. It may be the program
-can recover from this, but the error is still output. The catch command
-is used to trap the error but it allows the script to continue. If
-recovery from the exception is possible, this is a good thing. The basic
-syntax of catch is:
+If the catch script argument succeeds, catch returns a 0, and the returned
+value of the script is placed in the msg variable. If the catch script fails,
+catch returns a 1, and the error message produced by the script is stored
+in the msg variable.
 
-    catch &lt;command> [&lt;msg>]; # returns an error or exception value
-      when such is issued by the &lt;command>.  Optionally stores any
-      error message in the &lt;msg> variable. The following values are
-      returned:
+If catch returns a 1, the program can potentially recover from this, so it
+does not halt, but the error message is still output. So, the program can
+proceed while providing an opportunity to alert the user with a diagnostic 
+message.
 
-      0: no exception
-      1: Error. Return string describes the problem. Applies to catch.
-      2: return command was invoked. String gives return value for proc
-         or source command. Applies to catch, source, and procs.
-      3: break command was invoked. String is empty. Applies to catch,
-         for, foreach, while, and procs.
-      4: continue command was invoked. String is empty. Applies to
-         catch, for, foreach, while, and procs.
-      other: defined by the application. Applies to catch.
+The basic syntax of catch is:
+
+    catch &lt;command> [&lt;msg>]; # returns an error or exception value when
+      such is issued by the &lt;command>. Optionally stores the &lt;command> 
+      return value (for success) or error message (for failure) in the
+      &lt;msg> variable. catch returns these values (the associated return
+      strings are stored in &lt;msg> when specified):
+
+      0: no exception. The associated return string is the value
+         returned by &lt;command>.
+      1: Error. The associated return string describes the problem. 
+         Applies to catch.
+      2: return command was invoked when processing &lt;command>. The 
+         associated return string gives the return value for proc or
+         source commands. Applies to catch, source, and proc.
+      3: break command was invoked when processing &lt;command>. 
+         The associated return string is empty. Applies to catch, for,
+         foreach, while, and proc.
+      4: continue command was invoked when processing &lt;command>. The
+         associated string is empty. Applies to catch, for, foreach, 
+         while, and proc.
+      other: defined by the application (return command). Applies to catch.
 
 The return command also provides for exception handling:
 
-    return {[&lt;string>] | [-code &lt;code>] | [-errorinfo &lt;info>] |
-           [-errorcode &lt;error>]}; # causes the current procedure to
-      return an exceptional condition to the calling environment.
-      By default, an empty string is returned. The &lt;string> is a
-      return value. The allowed &lt;code> values are:
+    return {&lt;string> | {-code &lt;code> [&lt;msg>] [-errorinfo &lt;info>]
+           [-errorcode &lt;error>] [&lt;string>]}}; # causes the current procedure 
+      to return a value, exception, or condition to the calling environment. 
+      By default, an empty string is returned. The &lt;string> is a return
+      value. The allowed &lt;code> values are:
 
       break
       continue
@@ -1464,11 +1485,16 @@ The return command also provides for exception handling:
       return
       integer
 
-      These specify return conditions. The &lt;info> parameter specifies
-      a starting value for the global errorInfo variable. The &lt;error>
-      parameter specifies the value of the errorCode global variable.
+      These specify return conditions. The break, continue, and return
+      codes are typically only used for control structures having purposes
+      similar to built-in Tcl looping or proc commands.
+      
+      -errorInfo-errorInfo and -errorCode only matter if the &lt;code> is 
+      'error'. The &lt;info> parameter specifies a starting value for the global 
+      errorInfo variable. The &lt;error> parameter specifies the value of the 
+      errorCode global variable.
 
-Here is an example of error return code usage:
+Here is an example of error and return code usage:
 
     proc do {varName first last body} {
       global errorInfo errorCode
@@ -1489,31 +1515,32 @@ Here is an example of error return code usage:
     }
 
 varName is the name of a variable. varName gets its values from the
-calling environment through the upvar command. The 'do' proc sets
+calling environment through the upvar command. The 'do' proc sets 
 varName to the consecutive integer values 'first' and 'last'. Then 'do'
 executes the 'body' argument once for each setting.
 
 The uplevel command accesses $body from the calling environment and
 treats it as a Tcl script. The catch command traps any exceptions from
-that script and saves them in the 'string' variable. The 'code' variable
-traps the type of exception as a numeric code. Based upon that code, the
-'if' block handles the various conditions.
+that script and saves them in the 'string' variable consistent with
+return command exception handling rules. The 'code' variable traps the 
+type of exception or condition as a numeric code. Based upon that code, 
+the 'if' block handles the various conditions.
 
 If the code is 0 or 4 (no exception or 'continue', respectively), the
 proc goes on to the next iteration. If the code is 1 or 2 (error or
-return), the proc returns the exception to the calling environment,
-along with the variable values. If the code is 3 (break), the proc
-returns control to the calling environment normally. If any other code
-is encountered, the exception is returned to the calling environment.
+return), the proc returns the exception or message to the calling 
+environment, along with the string variable values. If the code is 3 
+(break), the proc returns control to the calling environment normally. 
+If any other code is encountered, the exception is returned to the 
+calling environment.
 
 An example call might be this:
 
-    set sines {}
-    do angle 30 45 {
-      lappend sines [expr {sin($angle*3.14159/180)}]
-    }
-    puts [regsub -all { } [split $sines] {
-}] ; #formatting here is deliberate to get the newline.
+    set reciprocals {}
+    do num -5 5 {
+      lappend reciprocals [expr {1/$num}]
+    }; # undefined at 0. for integer division, this is an error.
+    puts [regsub -all { } [split $reciprocals] "\n"] 
 </pre>
 <p style="font-family: monospace"><a href="#Contents">Contents</a></p>
 <a name="Command Environment"></a>
